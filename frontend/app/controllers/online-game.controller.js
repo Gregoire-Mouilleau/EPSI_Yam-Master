@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useContext } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, Button } from "react-native";
 import { SocketContext } from '../contexts/socket.context';
 
 
-export default function OnlineGameController() {
+export default function OnlineGameController({ navigation }) {
 
     const socket = useContext(SocketContext);
 
@@ -12,8 +12,12 @@ export default function OnlineGameController() {
     const [idOpponent, setIdOpponent] = useState(null);
 
     useEffect(() => {
+        console.log('[emit][get.state]:', socket.id);
+        socket.emit("get.state");
+        
         console.log('[emit][queue.join]:', socket.id);
         socket.emit("queue.join");
+        
         setInQueue(false);
         setInGame(false);
 
@@ -23,6 +27,10 @@ export default function OnlineGameController() {
             setInGame(data['inGame']);
         });
 
+        socket.on('queue.left', (data) => {
+            console.log('[listen][queue.left]:', data);
+        });
+
         socket.on('game.start', (data) => {
             console.log('[listen][game.start]:', data);
             setInQueue(data['inQueue']);
@@ -30,7 +38,32 @@ export default function OnlineGameController() {
             setIdOpponent(data['idOpponent']);
         });
 
+        socket.on('opponent.disconnected', (data) => {
+            console.log('[listen][opponent.disconnected]:', data);
+            alert('Votre adversaire s\'est déconnecté');
+            setInQueue(false);
+            setInGame(false);
+            setIdOpponent(null);
+            navigation.navigate('HomeScreen');
+        });
+
+        return () => {
+            console.log('[cleanup][queue.leave]:', socket.id);
+            socket.emit("queue.leave");
+            socket.off('queue.added');
+            socket.off('queue.left');
+            socket.off('game.start');
+            socket.off('opponent.disconnected');
+        };
     }, []);
+
+    const handleLeaveQueue = () => {
+        console.log('[emit][queue.leave]:', socket.id);
+        socket.emit("queue.leave");
+        setInQueue(false);
+        setInGame(false);
+        navigation.navigate('HomeScreen');
+    };
 
     return (
         <View style={styles.container}>
@@ -47,6 +80,13 @@ export default function OnlineGameController() {
                     <Text style={styles.paragraph}>
                         Waiting for another player...
                     </Text>
+                    <View style={{ marginTop: 20 }}>
+                        <Button
+                            title="Quitter la file d'attente"
+                            onPress={handleLeaveQueue}
+                            color="#ff6347"
+                        />
+                    </View>
                 </>
             )}
 

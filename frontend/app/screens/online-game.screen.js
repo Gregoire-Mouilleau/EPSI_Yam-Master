@@ -19,7 +19,7 @@ export default function OnlineGameScreen({ navigation }) {
                     </Text>
                 </View>
             ) : (
-                <OnlineGameController />
+                <OnlineGameController navigation={navigation} />
             )}
         </View>
     );
