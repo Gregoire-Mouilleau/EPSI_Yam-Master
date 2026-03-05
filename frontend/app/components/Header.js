@@ -3,7 +3,7 @@ import { TouchableOpacity, Text, Image, StyleSheet, Platform, View, Dimensions }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-export default function Header({ isHovered, onHoverIn, onHoverOut, onProfilePress }) {
+export default function Header({ isHovered, onHoverIn, onHoverOut, onProfilePress, profileLabel = 'PROFIL' }) {
   return (
     <View>
       <Image
@@ -25,7 +25,7 @@ export default function Header({ isHovered, onHoverIn, onHoverOut, onProfilePres
         onMouseLeave={Platform.OS === 'web' ? onHoverOut : undefined}
       >
         <Text style={styles.profileIcon}>👤</Text>
-        <Text style={styles.profileText}>PROFIL</Text>
+        <Text style={styles.profileText}>{profileLabel}</Text>
       </TouchableOpacity>
 
     </View>
@@ -93,10 +93,10 @@ const styles = StyleSheet.create({
   eloBadge: {
     position: 'absolute',
     top: SCREEN_HEIGHT / 2,
-    right: 8,
-    transform: [{ translateY: -184 }],
-    width: 368,
-    height: 368,
+    right: -80,
+    transform: [{ translateY: -212 }],
+    width: 423,
+    height: 423,
     zIndex: 100,
     shadowColor: 'rgba(0, 0, 0, 0.5)',
     shadowOffset: { width: 0, height: 4 },

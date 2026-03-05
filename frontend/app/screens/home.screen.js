@@ -9,6 +9,7 @@ import Logo from "../components/Logo";
 import GameButton from "../components/GameButton";
 import { SocketContext } from "../contexts/socket.context";
 import styles from "./home.styles";
+import { getHomeTexts } from "../i18n";
 
 const BACKGROUND_MUSIC_ASSET = require('../../assets/musique_background.mp3');
 
@@ -246,6 +247,8 @@ export default function HomeScreen({ navigation }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  const texts = getHomeTexts(language);
+
   return (
     <View style={styles.container}>
       <Background />
@@ -254,7 +257,8 @@ export default function HomeScreen({ navigation }) {
         isHovered={hoverProfile}
         onHoverIn={() => setHoverProfile(true)}
         onHoverOut={() => setHoverProfile(false)}
-        onProfilePress={() => alert('Profil - À venir')}
+        onProfilePress={() => alert(texts.profileComingSoon)}
+        profileLabel={texts.profile}
       />
 
       <View style={styles.content}>
@@ -263,7 +267,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.buttonsContainer}>
           <GameButton
             icon="🎮"
-            title="JOUER EN LIGNE"
+            title={texts.playOnline}
             onPress={() => {
               ensureMusicPlayback();
               navigation.navigate('OnlineGameScreen');
@@ -275,7 +279,7 @@ export default function HomeScreen({ navigation }) {
           
           <GameButton
             icon="🤖"
-            title="JOUER VS BOT"
+            title={texts.playVsBot}
             onPress={() => {
               ensureMusicPlayback();
               navigation.navigate('VsBotGameScreen');
@@ -324,14 +328,14 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.settingsOverlay}>
           <View style={styles.settingsPanel}>
             <View style={styles.settingsHeaderRow}>
-              <Text style={styles.settingsPanelTitle}>PARAMÈTRES</Text>
+              <Text style={styles.settingsPanelTitle}>{texts.settingsTitle}</Text>
               <TouchableOpacity style={styles.closeButton} onPress={() => setShowSettings(false)}>
                 <Text style={styles.closeButtonText}>✕</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Volume musique</Text>
+              <Text style={styles.settingLabel}>{texts.musicVolume}</Text>
               <View style={styles.volumeControls}>
                 <TouchableOpacity style={styles.smallControlButton} onPress={decreaseVolume}>
                   <Text style={styles.smallControlButtonText}>-</Text>
@@ -344,7 +348,7 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Langue</Text>
+              <Text style={styles.settingLabel}>{texts.language}</Text>
               <TouchableOpacity style={styles.inlineActionButton} onPress={toggleLanguage}>
                 <Text style={styles.inlineActionButtonText}>{language}</Text>
               </TouchableOpacity>
@@ -352,7 +356,7 @@ export default function HomeScreen({ navigation }) {
 
             {isConnected && (
               <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
-                <Text style={styles.disconnectButtonText}>SE DÉCONNECTER</Text>
+                <Text style={styles.disconnectButtonText}>{texts.disconnect}</Text>
               </TouchableOpacity>
             )}
           </View>
