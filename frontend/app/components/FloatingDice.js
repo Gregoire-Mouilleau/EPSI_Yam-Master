@@ -82,6 +82,7 @@ export default function FloatingDice() {
       {dices.map(dice => (
         <Animated.Text
           key={dice.id}
+          pointerEvents="none"
           style={[
             styles.dice,
             {

@@ -4,20 +4,25 @@ import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './app/screens/home.screen';
 import OnlineGameScreen from './app/screens/online-game.screen';
 import VsBotGameScreen from './app/screens/vs-bot-game.screen';
+import ProfileScreen from './app/screens/profile.screen';
 import { SocketContext, socket } from './app/contexts/socket.context';
+import { AuthProvider } from './app/contexts/auth.context';
 
 const Stack = createStackNavigator();
 
 function App() {
   return (
     <SocketContext.Provider value={socket}>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="HomeScreen" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="HomeScreen" component={HomeScreen} />
-          <Stack.Screen name="OnlineGameScreen" component={OnlineGameScreen} />
-          <Stack.Screen name="VsBotGameScreen" component={VsBotGameScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <AuthProvider>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName="HomeScreen" screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="HomeScreen" component={HomeScreen} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+            <Stack.Screen name="OnlineGameScreen" component={OnlineGameScreen} />
+            <Stack.Screen name="VsBotGameScreen" component={VsBotGameScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </AuthProvider>
     </SocketContext.Provider>
   );
 }

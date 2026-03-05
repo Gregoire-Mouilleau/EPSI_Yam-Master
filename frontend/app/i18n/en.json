@@ -1,10 +1,12 @@
 {
   "profile": "PROFILE",
+  "signIn": "SIGN IN",
   "profileComingSoon": "Profile - Coming soon",
   "playOnline": "PLAY ONLINE",
   "playVsBot": "PLAY VS BOT",
   "settingsTitle": "SETTINGS",
   "musicVolume": "Music volume",
   "language": "Language",
-  "disconnect": "LOG OUT"
+  "disconnect": "LOG OUT",
+  "chooseAvatar": "Choose a profile picture"
 }

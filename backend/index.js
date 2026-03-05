@@ -1,8 +1,25 @@
-const app = require('express')();
-const http = require('http').Server(app);
-const io = require('socket.io')(http);
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const helmet = require('helmet');
+const socketIo = require('socket.io');
 var uniqid = require('uniqid');
 const GameService = require('./services/game.service');
+const authRoutes = require('./routes/auth.routes');
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+});
+
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
+app.use('/api/auth', authRoutes);
 
 let games = [];
 let queue = [];
@@ -106,6 +123,6 @@ io.on('connection', socket => {
 
 app.get('/', (req, res) => res.json({ status: 'WebSocket Server running', port: 3000 }));
 
-http.listen(3000, function(){
+server.listen(3000, function(){
   console.log('listening on *:3000');
 });

@@ -1,21 +1,32 @@
 import React from "react";
 import { TouchableOpacity, Text, Image, StyleSheet, Platform, View, Dimensions } from "react-native";
+import { getAvatarSource } from "../constants/avatars";
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-export default function Header({ isHovered, onHoverIn, onHoverOut, onProfilePress, profileLabel = 'PROFIL' }) {
+export default function Header({
+  isHovered,
+  onHoverIn,
+  onHoverOut,
+  onProfilePress,
+  profileLabel = 'PROFIL',
+  isAuthenticated = false,
+  avatarKey = 'avatar_1',
+}) {
   return (
-    <View>
+    <View style={styles.overlay} pointerEvents="box-none">
       <Image
         source={require('../../assets/mascotte.png')}
         style={styles.mascot}
         resizeMode="contain"
+        pointerEvents="none"
       />
 
       <Image
         source={require('../../assets/elo.png')}
         style={styles.eloBadge}
         resizeMode="contain"
+        pointerEvents="none"
       />
 
       <TouchableOpacity
@@ -24,7 +35,11 @@ export default function Header({ isHovered, onHoverIn, onHoverOut, onProfilePres
         onMouseEnter={Platform.OS === 'web' ? onHoverIn : undefined}
         onMouseLeave={Platform.OS === 'web' ? onHoverOut : undefined}
       >
-        <Text style={styles.profileIcon}>👤</Text>
+        {isAuthenticated ? (
+          <Image source={getAvatarSource(avatarKey)} style={styles.profileAvatar} />
+        ) : (
+          <Text style={styles.profileIcon}>👤</Text>
+        )}
         <Text style={styles.profileText}>{profileLabel}</Text>
       </TouchableOpacity>
 
@@ -33,6 +48,10 @@ export default function Header({ isHovered, onHoverIn, onHoverOut, onProfilePres
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 220,
+  },
   profileButton: {
     position: 'absolute',
     top: 20,
@@ -46,7 +65,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#FFD700',
     borderBottomWidth: 4,
-    zIndex: 100,
+    zIndex: 200,
     transition: Platform.OS === 'web' ? 'all 0.3s ease' : undefined,
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 4 },
@@ -76,6 +95,14 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+  },
+  profileAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    marginRight: 8,
+    borderWidth: 2,
+    borderColor: '#FFD700',
   },
   mascot: {
     position: 'absolute',

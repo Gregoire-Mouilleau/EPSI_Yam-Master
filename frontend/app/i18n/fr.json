@@ -1,10 +1,12 @@
 {
   "profile": "PROFIL",
+  "signIn": "SE CONNECTER",
   "profileComingSoon": "Profil - À venir",
   "playOnline": "JOUER EN LIGNE",
   "playVsBot": "JOUER VS BOT",
   "settingsTitle": "PARAMÈTRES",
   "musicVolume": "Volume musique",
   "language": "Langue",
-  "disconnect": "SE DÉCONNECTER"
+  "disconnect": "SE DÉCONNECTER",
+  "chooseAvatar": "Choisir une photo de profil"
 }

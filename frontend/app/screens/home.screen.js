@@ -8,6 +8,7 @@ import Header from "../components/Header";
 import Logo from "../components/Logo";
 import GameButton from "../components/GameButton";
 import { SocketContext } from "../contexts/socket.context";
+import { AuthContext } from "../contexts/auth.context";
 import styles from "./home.styles";
 import { getHomeTexts } from "../i18n";
 
@@ -15,34 +16,18 @@ const BACKGROUND_MUSIC_ASSET = require('../../assets/musique_background.mp3');
 
 export default function HomeScreen({ navigation }) {
   const socket = useContext(SocketContext);
+  const { user, logout } = useContext(AuthContext);
   const [hoverOnline, setHoverOnline] = useState(false);
   const [hoverBot, setHoverBot] = useState(false);
   const [hoverProfile, setHoverProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [musicVolume, setMusicVolume] = useState(50);
   const [language, setLanguage] = useState('FR');
-  const [isConnected, setIsConnected] = useState(Boolean(socket?.connected));
   const musicRef = useRef(null);
   const settingsRotate = useRef(new Animated.Value(0)).current;
   const settingsFloat = useRef(new Animated.Value(0)).current;
   const settingsScale = useRef(new Animated.Value(1)).current;
   const settingsHoverLoopRef = useRef(null);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const onConnect = () => setIsConnected(true);
-    const onDisconnect = () => setIsConnected(false);
-
-    setIsConnected(Boolean(socket.connected));
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-
-    return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-    };
-  }, [socket]);
 
   useEffect(() => {
     let isMounted = true;
@@ -152,11 +137,12 @@ export default function HomeScreen({ navigation }) {
     setLanguage((prev) => (prev === 'FR' ? 'EN' : 'FR'));
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
     ensureMusicPlayback();
-    if (!socket || !socket.connected) return;
-    socket.disconnect();
-    setIsConnected(false);
+    if (socket && socket.connected) {
+      socket.disconnect();
+    }
+    await logout();
   };
 
   const handleOpenSettings = () => {
@@ -257,8 +243,10 @@ export default function HomeScreen({ navigation }) {
         isHovered={hoverProfile}
         onHoverIn={() => setHoverProfile(true)}
         onHoverOut={() => setHoverProfile(false)}
-        onProfilePress={() => alert(texts.profileComingSoon)}
-        profileLabel={texts.profile}
+        onProfilePress={() => navigation.navigate('ProfileScreen')}
+        profileLabel={user ? user.pseudo : texts.signIn}
+        isAuthenticated={!!user}
+        avatarKey={user?.avatarKey}
       />
 
       <View style={styles.content}>
@@ -354,7 +342,7 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {isConnected && (
+            {!!user && (
               <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
                 <Text style={styles.disconnectButtonText}>{texts.disconnect}</Text>
               </TouchableOpacity>
