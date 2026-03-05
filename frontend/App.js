@@ -12,7 +12,7 @@ function App() {
   return (
     <SocketContext.Provider value={socket}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="HomeScreen">
+        <Stack.Navigator initialRouteName="HomeScreen" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="HomeScreen" component={HomeScreen} />
           <Stack.Screen name="OnlineGameScreen" component={OnlineGameScreen} />
           <Stack.Screen name="VsBotGameScreen" component={VsBotGameScreen} />
