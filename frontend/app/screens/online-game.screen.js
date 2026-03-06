@@ -13,20 +13,25 @@ export default function OnlineGameScreen({ navigation }) {
     const socket = useContext(SocketContext);
     const { user } = useContext(AuthContext);
     const { language } = useContext(LanguageContext);
+    const [isPlaying, setIsPlaying] = React.useState(false);
 
     return (
         <View style={styles.container}>
-            <Background />
-            <FloatingDice />
-            <Header 
-                onProfilePress={() => navigation.navigate('ProfileScreen')}
-                onLeaderboardPress={() => navigation.navigate('LeaderboardScreen')}
-                profileLabel={user ? user.pseudo : 'Sign In'}
-                isAuthenticated={!!user}
-                avatarKey={user?.avatarKey}
-            />
+            {!isPlaying && (
+                <>
+                    <Background />
+                    <FloatingDice />
+                    <Header 
+                        onProfilePress={() => navigation.navigate('ProfileScreen')}
+                        onLeaderboardPress={() => navigation.navigate('LeaderboardScreen')}
+                        profileLabel={user ? user.pseudo : 'Sign In'}
+                        isAuthenticated={!!user}
+                        avatarKey={user?.avatarKey}
+                    />
+                </>
+            )}
             
-            <View style={styles.content}>
+            <View style={[styles.content, isPlaying && styles.contentPlaying]}>
                 {!socket ? (
                     <View style={styles.errorContainer}>
                         <Text style={styles.errorTitle}>⚠️ No connection</Text>
@@ -38,7 +43,11 @@ export default function OnlineGameScreen({ navigation }) {
                         </Text>
                     </View>
                 ) : (
-                    <OnlineGameController navigation={navigation} language={language} />
+                    <OnlineGameController 
+                        navigation={navigation} 
+                        language={language} 
+                        onGameStateChange={setIsPlaying}
+                    />
                 )}
             </View>
         </View>
@@ -56,6 +65,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
         zIndex: 2,
+    },
+    contentPlaying: {
+        padding: 0,
+        justifyContent: 'flex-start',
+        alignItems: 'stretch',
     },
     errorContainer: {
         backgroundColor: 'rgba(70, 11, 0, 0.76)',

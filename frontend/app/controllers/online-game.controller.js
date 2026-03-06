@@ -4,9 +4,15 @@ import { SocketContext } from '../contexts/socket.context';
 import { AuthContext } from '../contexts/auth.context';
 import { getAvatarSource } from '../constants/avatars';
 import { getHomeTexts } from '../i18n';
+import PlayerTimer from '../components/board/timers/player-timer.component';
+import OpponentTimer from '../components/board/timers/opponent-timer.component';
+import PlayerDeck from '../components/board/decks/player-deck.component';
+import OpponentDeck from '../components/board/decks/opponent-deck.component';
+import Grid from '../components/board/grid/grid.component';
+import Choices from '../components/board/choices/choices.component';
 
 
-export default function OnlineGameController({ navigation, language = 'FR' }) {
+export default function OnlineGameController({ navigation, language = 'FR', onGameStateChange }) {
 
     const socket = useContext(SocketContext);
     const { user } = useContext(AuthContext);
@@ -14,6 +20,7 @@ export default function OnlineGameController({ navigation, language = 'FR' }) {
 
     const [inQueue, setInQueue] = useState(false);
     const [inGame, setInGame] = useState(false);
+    const [showGameBoard, setShowGameBoard] = useState(false);
     const [idOpponent, setIdOpponent] = useState(null);
     const [pseudoPlayer, setPseudoPlayer] = useState(null);
     const [pseudoOpponent, setPseudoOpponent] = useState(null);
@@ -37,6 +44,28 @@ export default function OnlineGameController({ navigation, language = 'FR' }) {
             ])
         ).start();
     }, []);
+
+    // Afficher le plateau de jeu après 3 secondes quand inGame devient true
+    useEffect(() => {
+        if (inGame) {
+            const timer = setTimeout(() => {
+                setShowGameBoard(true);
+                if (onGameStateChange) {
+                    onGameStateChange(true);
+                }
+                // Attendre que les composants soient montés avant de demander les états
+                setTimeout(() => {
+                    socket.emit('game.refresh-board');
+                }, 500);
+            }, 3000);
+            return () => clearTimeout(timer);
+        } else {
+            setShowGameBoard(false);
+            if (onGameStateChange) {
+                onGameStateChange(false);
+            }
+        }
+    }, [inGame]);
 
     useEffect(() => {
         console.log('[emit][get.state]:', socket.id);
@@ -74,7 +103,11 @@ export default function OnlineGameController({ navigation, language = 'FR' }) {
             alert('Votre adversaire s\'est déconnecté');
             setInQueue(false);
             setInGame(false);
+            setShowGameBoard(false);
             setIdOpponent(null);
+            if (onGameStateChange) {
+                onGameStateChange(false);
+            }
             navigation.navigate('HomeScreen');
         });
 
@@ -85,6 +118,9 @@ export default function OnlineGameController({ navigation, language = 'FR' }) {
             socket.off('queue.left');
             socket.off('game.start');
             socket.off('opponent.disconnected');
+            if (onGameStateChange) {
+                onGameStateChange(false);
+            }
         };
     }, []);
 
@@ -93,9 +129,30 @@ export default function OnlineGameController({ navigation, language = 'FR' }) {
         socket.emit("queue.leave");
         setInQueue(false);
         setInGame(false);
+        setShowGameBoard(false);
+        if (onGameStateChange) {
+            onGameStateChange(false);
+        }
         navigation.navigate('HomeScreen');
     };
 
+    // Si le plateau de jeu doit être affiché, on retourne une vue en plein écran
+    if (inGame && showGameBoard) {
+        return (
+            <View style={styles.gameContainer}>
+                <View style={styles.gameBoard}>
+                    <OpponentTimer />
+                    <OpponentDeck />
+                    <Grid />
+                    <Choices />
+                    <PlayerDeck />
+                    <PlayerTimer />
+                </View>
+            </View>
+        );
+    }
+
+    // Sinon, affichage normal avec le container centré
     return (
         <View style={styles.container}>
             {!inQueue && !inGame && (
@@ -124,7 +181,7 @@ export default function OnlineGameController({ navigation, language = 'FR' }) {
                 </Animated.View>
             )}
 
-            {inGame && (
+            {inGame && !showGameBoard && (
                 <View style={styles.card}>
                     <Text style={styles.emoji}>🎮</Text>
                     <Text style={styles.title}>{texts.queueMatchFound}</Text>
@@ -282,5 +339,21 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0, 0, 0, 0.6)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
+    },
+    gameContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 1000,
+        backgroundColor: '#2C1810',
+    },
+    gameBoard: {
+        flex: 1,
+        padding: 10,
+        justifyContent: 'space-between',
     },
 });
