@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Background from '../components/Background';
 import { AuthContext } from '../contexts/auth.context';
+import { LanguageContext } from '../contexts/language.context';
 import { getAvatarSource } from '../constants/avatars';
 import { getRankFromElo, RANKS } from '../constants/ranks';
 import { getLeaderboardTexts } from '../i18n';
@@ -39,10 +40,10 @@ const PAPER_SPECKLES = [
 
 export default function LeaderboardScreen({ navigation }) {
   const { getLeaderboard, user } = useContext(AuthContext);
+  const { language } = useContext(LanguageContext);
   const [leaderboardData, setLeaderboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [language] = useState('FR');
 
   const texts = getLeaderboardTexts(language);
 

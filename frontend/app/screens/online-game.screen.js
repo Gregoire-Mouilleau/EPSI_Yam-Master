@@ -1,7 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { StyleSheet, View, Text } from "react-native";
 import { SocketContext } from '../contexts/socket.context';
 import { AuthContext } from '../contexts/auth.context';
+import { LanguageContext } from '../contexts/language.context';
 import OnlineGameController from "../controllers/online-game.controller";
 import Background from "../components/Background";
 import FloatingDice from "../components/FloatingDice";
@@ -11,7 +12,7 @@ export default function OnlineGameScreen({ navigation }) {
 
     const socket = useContext(SocketContext);
     const { user } = useContext(AuthContext);
-    const [language] = useState('FR'); // Default to French
+    const { language } = useContext(LanguageContext);
 
     return (
         <View style={styles.container}>

@@ -9,6 +9,7 @@ import Logo from "../components/Logo";
 import GameButton from "../components/GameButton";
 import { SocketContext } from "../contexts/socket.context";
 import { AuthContext } from "../contexts/auth.context";
+import { LanguageContext } from "../contexts/language.context";
 import styles from "./home.styles";
 import { getHomeTexts } from "../i18n";
 
@@ -17,12 +18,12 @@ const BACKGROUND_MUSIC_ASSET = require('../../assets/musique_background.mp3');
 export default function HomeScreen({ navigation }) {
   const socket = useContext(SocketContext);
   const { user, logout } = useContext(AuthContext);
+  const { language, toggleLanguage } = useContext(LanguageContext);
   const [hoverOnline, setHoverOnline] = useState(false);
   const [hoverBot, setHoverBot] = useState(false);
   const [hoverProfile, setHoverProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [musicVolume, setMusicVolume] = useState(50);
-  const [language, setLanguage] = useState('FR');
   const musicRef = useRef(null);
   const settingsRotate = useRef(new Animated.Value(0)).current;
   const settingsFloat = useRef(new Animated.Value(0)).current;
@@ -131,10 +132,6 @@ export default function HomeScreen({ navigation }) {
 
   const increaseVolume = () => {
     setMusicVolume((prev) => Math.min(100, prev + 10));
-  };
-
-  const toggleLanguage = () => {
-    setLanguage((prev) => (prev === 'FR' ? 'EN' : 'FR'));
   };
 
   const handleDisconnect = async () => {
@@ -328,14 +325,22 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.settingsOverlay}>
           <View style={styles.settingsPanel}>
             <View style={styles.settingsHeaderRow}>
-              <Text style={styles.settingsPanelTitle}>{texts.settingsTitle}</Text>
+              <View style={styles.settingsTitleContainer}>
+                <Text style={styles.settingsTitleEmoji}>⚙️</Text>
+                <Text style={styles.settingsPanelTitle}>{texts.settingsTitle}</Text>
+              </View>
               <TouchableOpacity style={styles.closeButton} onPress={() => setShowSettings(false)}>
                 <Text style={styles.closeButtonText}>✕</Text>
               </TouchableOpacity>
             </View>
 
+            <View style={styles.settingsDivider} />
+
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>{texts.musicVolume}</Text>
+              <View style={styles.settingLabelRow}>
+                <Text style={styles.settingEmoji}>🎵</Text>
+                <Text style={styles.settingLabel}>{texts.musicVolume}</Text>
+              </View>
               <View style={styles.volumeControls}>
                 <TouchableOpacity style={styles.smallControlButton} onPress={decreaseVolume}>
                   <Text style={styles.smallControlButtonText}>-</Text>
@@ -348,16 +353,23 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>{texts.language}</Text>
+              <View style={styles.settingLabelRow}>
+                <Text style={styles.settingEmoji}>🌍</Text>
+                <Text style={styles.settingLabel}>{texts.language}</Text>
+              </View>
               <TouchableOpacity style={styles.inlineActionButton} onPress={toggleLanguage}>
                 <Text style={styles.inlineActionButtonText}>{language}</Text>
               </TouchableOpacity>
             </View>
 
             {!!user && (
-              <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
-                <Text style={styles.disconnectButtonText}>{texts.disconnect}</Text>
-              </TouchableOpacity>
+              <View>
+                <View style={styles.settingsDivider} />
+                <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
+                  <Text style={styles.disconnectButtonEmoji}></Text>
+                  <Text style={styles.disconnectButtonText}>{texts.disconnect}</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </View>
