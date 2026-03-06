@@ -244,6 +244,10 @@ export default function HomeScreen({ navigation }) {
         onHoverIn={() => setHoverProfile(true)}
         onHoverOut={() => setHoverProfile(false)}
         onProfilePress={() => navigation.navigate('ProfileScreen')}
+        onLeaderboardPress={() => {
+          ensureMusicPlayback();
+          navigation.navigate('LeaderboardScreen');
+        }}
         profileLabel={user ? user.pseudo : texts.signIn}
         isAuthenticated={!!user}
         avatarKey={user?.avatarKey}

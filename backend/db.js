@@ -18,7 +18,7 @@ db.exec(`
     pseudo TEXT NOT NULL UNIQUE COLLATE NOCASE,
     password_hash TEXT NOT NULL,
     avatar_key TEXT NOT NULL DEFAULT 'avatar_1',
-    elo INTEGER NOT NULL DEFAULT 1000,
+    elo INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )
 `);

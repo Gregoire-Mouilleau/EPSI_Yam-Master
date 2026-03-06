@@ -231,4 +231,42 @@ router.patch('/profile', requireAuth, async (req, res) => {
   }
 });
 
+router.get('/leaderboard', requireAuth, (req, res) => {
+  try {
+    // Récupérer les 20 meilleurs joueurs
+    const getTopPlayersStmt = db.prepare(
+      'SELECT id, pseudo, avatar_key, elo FROM users ORDER BY elo DESC LIMIT 20'
+    );
+    const topPlayers = getTopPlayersStmt.all().map(formatUser);
+
+    // Récupérer le rang du joueur actuel
+    const getRankStmt = db.prepare(
+      'SELECT COUNT(*) as rank FROM users WHERE elo > (SELECT elo FROM users WHERE id = ?)'
+    );
+    const rankResult = getRankStmt.get(req.auth.sub);
+    const userRank = rankResult.rank + 1;
+
+    // Récupérer le joueur actuel
+    const currentUser = getUserByIdStmt.get(req.auth.sub);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'Utilisateur introuvable' });
+    }
+
+    // Récupérer le total de joueurs
+    const getTotalPlayersStmt = db.prepare('SELECT COUNT(*) as total FROM users');
+    const totalResult = getTotalPlayersStmt.get();
+    const totalPlayers = totalResult.total;
+
+    return res.status(200).json({
+      topPlayers,
+      currentUser: formatUser(currentUser),
+      userRank,
+      totalPlayers,
+    });
+  } catch (error) {
+    console.error('Error in GET /leaderboard:', error);
+    return res.status(500).json({ message: 'Erreur serveur (leaderboard)' });
+  }
+});
+
 module.exports = router;

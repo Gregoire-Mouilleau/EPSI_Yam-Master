@@ -9,6 +9,7 @@ export default function Header({
   onHoverIn,
   onHoverOut,
   onProfilePress,
+  onLeaderboardPress,
   profileLabel = 'PROFIL',
   isAuthenticated = false,
   avatarKey = 'avatar_1',
@@ -22,12 +23,17 @@ export default function Header({
         pointerEvents="none"
       />
 
-      <Image
-        source={require('../../assets/elo.png')}
-        style={styles.eloBadge}
-        resizeMode="contain"
-        pointerEvents="none"
-      />
+      <TouchableOpacity
+        style={styles.eloTouchable}
+        onPress={onLeaderboardPress}
+        activeOpacity={0.8}
+      >
+        <Image
+          source={require('../../assets/elo.png')}
+          style={styles.eloBadge}
+          resizeMode="contain"
+        />
+      </TouchableOpacity>
 
       <Image
         source={require('../../assets/regles.png')}
@@ -124,7 +130,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
   },
-  eloBadge: {
+  eloTouchable: {
     position: 'absolute',
     top: SCREEN_HEIGHT / 2,
     right: -110,
@@ -132,6 +138,10 @@ const styles = StyleSheet.create({
     width: 550,
     height: 550,
     zIndex: 100,
+  },
+  eloBadge: {
+    width: '100%',
+    height: '100%',
     shadowColor: 'rgba(0, 0, 0, 0.5)',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,

@@ -13,6 +13,7 @@ export const AuthContext = createContext({
   refreshMe: async () => ({ success: false }),
   updateAvatar: async () => ({ success: false }),
   updateProfile: async () => ({ success: false }),
+  getLeaderboard: async () => ({ success: false }),
   logout: async () => {},
 });
 
@@ -155,6 +156,23 @@ export function AuthProvider({ children }) {
     }
   }, [token, persistAuth]);
 
+  const getLeaderboard = useCallback(async () => {
+    if (!token) return { success: false, message: 'Non connecté' };
+
+    try {
+      const data = await request('/api/auth/leaderboard', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return { success: true, ...data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }, [token]);
+
   const logout = useCallback(async () => {
     setToken(null);
     setUser(null);
@@ -170,8 +188,9 @@ export function AuthProvider({ children }) {
     refreshMe,
     updateAvatar,
     updateProfile,
+    getLeaderboard,
     logout,
-  }), [isAuthLoading, token, user, register, login, refreshMe, updateAvatar, updateProfile, logout]);
+  }), [isAuthLoading, token, user, register, login, refreshMe, updateAvatar, updateProfile, getLeaderboard, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

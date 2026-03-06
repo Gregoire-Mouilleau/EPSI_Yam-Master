@@ -8,5 +8,12 @@
   "musicVolume": "Music volume",
   "language": "Language",
   "disconnect": "LOG OUT",
-  "chooseAvatar": "Choose a profile picture"
+  "chooseAvatar": "Choose a profile picture",
+  "leaderboardTitle": "LEADERBOARD",
+  "leaderboardYourRank": "Your Rank",
+  "leaderboardTopPercentage": "Top Players",
+  "leaderboardTopPlayers": "🏆 Top Players",
+  "leaderboardBack": "BACK",
+  "leaderboardLoading": "Loading...",
+  "leaderboardRetry": "RETRY"
 }

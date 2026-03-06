@@ -12,6 +12,7 @@ import {
 import Background from '../components/Background';
 import { AuthContext } from '../contexts/auth.context';
 import { AVATAR_OPTIONS, DEFAULT_AVATAR_KEY, getAvatarSource } from '../constants/avatars';
+import { getRankFromElo, getNextRank, getProgressToNextRank, getEloToNextRank } from '../constants/ranks';
 
 const PAPER_SPECKLES = [
   { top: '7%', left: '9%', size: 3, opacity: 0.2 },
@@ -246,29 +247,57 @@ export default function ProfileScreen({ navigation }) {
               <ActivityIndicator size="large" color="#8B4513" style={styles.loading} />
             ) : user ? (
               <View style={styles.userBox}>
-                <View style={styles.profileTopCard}>
-                  <View pointerEvents="none" style={styles.topCardSparkles}>
-                    <Text style={[styles.sparkle, styles.sparkleOne]}>✦</Text>
-                    <Text style={[styles.sparkle, styles.sparkleTwo]}>✦</Text>
-                    <Text style={[styles.sparkle, styles.sparkleThree]}>✦</Text>
-                  </View>
+                {(() => {
+                  const currentRank = getRankFromElo(user.elo);
+                  const nextRank = getNextRank(user.elo);
+                  const progress = getProgressToNextRank(user.elo);
+                  const eloToNext = getEloToNextRank(user.elo);
 
-                  <View style={styles.currentUserInfo}>
-                    <View style={styles.avatarFrame}>
-                      <Image source={getAvatarSource(user.avatarKey)} style={styles.currentAvatar} />
-                    </View>
+                  return (
+                    <>
+                      <View style={styles.profileTopCard}>
+                        <View pointerEvents="none" style={styles.topCardSparkles}>
+                          <Text style={[styles.sparkle, styles.sparkleOne]}>✦</Text>
+                          <Text style={[styles.sparkle, styles.sparkleTwo]}>✦</Text>
+                          <Text style={[styles.sparkle, styles.sparkleThree]}>✦</Text>
+                        </View>
 
-                    <View style={styles.usernameSlot}>
-                      <Text style={styles.profileNameValue}>{user.pseudo}</Text>
-                    </View>
+                        <View style={styles.currentUserInfo}>
+                          <View style={styles.avatarFrame}>
+                            <Image source={getAvatarSource(user.avatarKey)} style={styles.currentAvatar} />
+                          </View>
 
-                    <View style={styles.eloBadge}>
-                      <Text style={styles.eloLabel}>ELO</Text>
-                      <Text style={styles.eloValue}>{user.elo}</Text>
-                      <Text style={styles.eloCoin}>🪙</Text>
-                    </View>
-                  </View>
-                </View>
+                          <View style={styles.usernameSlot}>
+                            <Text style={styles.profileNameValue}>{user.pseudo}</Text>
+                          </View>
+
+                          <View style={styles.eloBadge}>
+                            <View style={styles.rankHeader}>
+                              <Text style={[styles.rankEmoji]}>{currentRank.emoji}</Text>
+                              <Text style={[styles.rankName, { color: currentRank.color }]}>
+                                {currentRank.name}
+                              </Text>
+                            </View>
+                            <Text style={styles.eloValue}>{user.elo} ELO</Text>
+                            {nextRank && (
+                              <>
+                                <View style={styles.progressBarContainer}>
+                                  <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: nextRank.color }]} />
+                                </View>
+                                <Text style={styles.eloToNext}>
+                                  {eloToNext} pts → {nextRank.emoji} {nextRank.name}
+                                </Text>
+                              </>
+                            )}
+                            {!nextRank && (
+                              <Text style={styles.maxRankText}>🏆 Rang Maximum</Text>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    </>
+                  );
+                })()}
 
                 <View style={styles.ruleBlock}>
                   <View style={styles.ruleHeader}>
@@ -766,21 +795,35 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   eloBadge: {
-    minWidth: 136,
-    minHeight: 96,
+    minWidth: 150,
+    minHeight: 120,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(100, 23, 10, 0.95)',
     borderWidth: 2.4,
     borderColor: '#F1B63E',
     borderRadius: 18,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     zIndex: 2,
     shadowColor: '#FACC15',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
+  },
+  rankHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  rankEmoji: {
+    fontSize: 22,
+  },
+  rankName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
   eloLabel: {
     color: '#FDE68A',
@@ -790,8 +833,34 @@ const styles = StyleSheet.create({
   },
   eloValue: {
     color: '#FFF6C7',
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  progressBarContainer: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginTop: 4,
+    marginBottom: 3,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  eloToNext: {
+    color: '#FDE68A',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  maxRankText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 4,
   },
   eloCoin: {
     position: 'absolute',

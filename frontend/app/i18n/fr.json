@@ -8,5 +8,12 @@
   "musicVolume": "Volume musique",
   "language": "Langue",
   "disconnect": "SE DÉCONNECTER",
-  "chooseAvatar": "Choisir une photo de profil"
+  "chooseAvatar": "Choisir une photo de profil",
+  "leaderboardTitle": "CLASSEMENT",
+  "leaderboardYourRank": "Votre Classement",
+  "leaderboardTopPercentage": "Top des joueurs",
+  "leaderboardTopPlayers": "🏆 Meilleurs Joueurs",
+  "leaderboardBack": "RETOUR",
+  "leaderboardLoading": "Chargement...",
+  "leaderboardRetry": "RÉESSAYER"
 }
