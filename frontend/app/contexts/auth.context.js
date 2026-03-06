@@ -12,6 +12,7 @@ export const AuthContext = createContext({
   login: async () => ({ success: false }),
   refreshMe: async () => ({ success: false }),
   updateAvatar: async () => ({ success: false }),
+  updateProfile: async () => ({ success: false }),
   logout: async () => {},
 });
 
@@ -134,6 +135,26 @@ export function AuthProvider({ children }) {
     }
   }, [token, persistAuth]);
 
+  const updateProfile = useCallback(async ({ pseudo, currentPassword, newPassword }) => {
+    if (!token) return { success: false, message: 'Non connecté' };
+
+    try {
+      const data = await request('/api/auth/profile', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ pseudo, currentPassword, newPassword }),
+      });
+
+      const nextToken = data.token || token;
+      await persistAuth(nextToken, data.user);
+      return { success: true, user: data.user };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }, [token, persistAuth]);
+
   const logout = useCallback(async () => {
     setToken(null);
     setUser(null);
@@ -148,8 +169,9 @@ export function AuthProvider({ children }) {
     login,
     refreshMe,
     updateAvatar,
+    updateProfile,
     logout,
-  }), [isAuthLoading, token, user, register, login, refreshMe, updateAvatar, logout]);
+  }), [isAuthLoading, token, user, register, login, refreshMe, updateAvatar, updateProfile, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

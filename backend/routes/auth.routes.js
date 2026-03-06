@@ -10,8 +10,11 @@ const ALLOWED_AVATAR_KEYS = ['avatar_1', 'avatar_2', 'avatar_3', 'avatar_4', 'av
 
 const insertUserStmt = db.prepare('INSERT INTO users (pseudo, password_hash, avatar_key) VALUES (?, ?, ?)');
 const getUserByPseudoStmt = db.prepare('SELECT id, pseudo, password_hash, avatar_key, elo FROM users WHERE pseudo = ?');
+const getUserAuthByIdStmt = db.prepare('SELECT id, pseudo, password_hash, avatar_key, elo FROM users WHERE id = ?');
 const getUserByIdStmt = db.prepare('SELECT id, pseudo, avatar_key, elo FROM users WHERE id = ?');
 const updateAvatarStmt = db.prepare('UPDATE users SET avatar_key = ? WHERE id = ?');
+const updatePseudoStmt = db.prepare('UPDATE users SET pseudo = ? WHERE id = ?');
+const updatePasswordStmt = db.prepare('UPDATE users SET password_hash = ? WHERE id = ?');
 
 function formatUser(row) {
   return {
@@ -142,6 +145,89 @@ router.patch('/avatar', requireAuth, (req, res) => {
     return res.status(200).json({ user: formatUser(user) });
   } catch (error) {
     return res.status(500).json({ message: 'Erreur serveur (avatar)' });
+  }
+});
+
+router.patch('/profile', requireAuth, async (req, res) => {
+  try {
+    const { pseudo, currentPassword, newPassword } = req.body || {};
+    const trimmedPseudo = typeof pseudo === 'string' ? pseudo.trim() : undefined;
+
+    console.log('=== PATCH /profile ===');
+    console.log('Payload reçu:', { pseudo, hasCurrent: !!currentPassword, hasNew: !!newPassword });
+    console.log('User ID:', req.auth.sub);
+
+    const userAuth = getUserAuthByIdStmt.get(req.auth.sub);
+    if (!userAuth) {
+      return res.status(404).json({ message: 'Utilisateur introuvable' });
+    }
+
+    console.log('User actuel:', { id: userAuth.id, pseudo: userAuth.pseudo });
+    console.log('Pseudo trimmed:', trimmedPseudo);
+    console.log('Pseudo identique?:', trimmedPseudo === userAuth.pseudo);
+
+    let hasAnyChange = false;
+    let nextPseudo = userAuth.pseudo;
+
+    // Gestion du changement de pseudo
+    if (trimmedPseudo && trimmedPseudo !== userAuth.pseudo) {
+      console.log('→ Changement de pseudo détecté');
+      if (!isPseudoValid(trimmedPseudo)) {
+        return res.status(400).json({ message: 'Pseudo invalide (3-20 chars, lettres/chiffres/_)' });
+      }
+
+      const existing = getUserByPseudoStmt.get(trimmedPseudo);
+      if (existing && existing.id !== userAuth.id) {
+        return res.status(409).json({ message: 'Pseudo déjà utilisé' });
+      }
+
+      updatePseudoStmt.run(trimmedPseudo, req.auth.sub);
+      hasAnyChange = true;
+      nextPseudo = trimmedPseudo;
+      console.log('→ Pseudo mis à jour:', trimmedPseudo);
+    }
+
+    // Gestion du changement de mot de passe
+    if (newPassword && newPassword.length > 0) {
+      console.log('→ Changement de mot de passe demandé');
+      if (!isPasswordValid(newPassword)) {
+        return res.status(400).json({ message: 'Nouveau mot de passe invalide (min 8 caractères)' });
+      }
+
+      if (!currentPassword || currentPassword.length === 0) {
+        return res.status(400).json({ message: 'Mot de passe actuel requis pour changer le mot de passe' });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, userAuth.password_hash);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Mot de passe actuel incorrect' });
+      }
+
+      const newPasswordHash = await bcrypt.hash(newPassword, 12);
+      updatePasswordStmt.run(newPasswordHash, req.auth.sub);
+      hasAnyChange = true;
+      console.log('→ Mot de passe mis à jour');
+    }
+
+    console.log('Has any change?:', hasAnyChange);
+
+    if (!hasAnyChange) {
+      return res.status(400).json({ message: 'Aucune modification à enregistrer' });
+    }
+
+    const user = getUserByIdStmt.get(req.auth.sub);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur introuvable' });
+    }
+
+    const cleanUser = formatUser(user);
+    const token = nextPseudo !== req.auth.pseudo ? issueToken(cleanUser) : undefined;
+
+    console.log('→ Succès, retour user:', cleanUser);
+    return res.status(200).json({ user: cleanUser, token });
+  } catch (error) {
+    console.error('Error in PATCH /profile:', error);
+    return res.status(500).json({ message: 'Erreur serveur (profile)' });
   }
 });
 

@@ -29,6 +29,13 @@ export default function Header({
         pointerEvents="none"
       />
 
+      <Image
+        source={require('../../assets/regles.png')}
+        style={styles.rulesBadge}
+        resizeMode="contain"
+        pointerEvents="none"
+      />
+
       <TouchableOpacity
         style={[styles.profileButton, isHovered && styles.profileButtonHovered]}
         onPress={onProfilePress}
@@ -120,7 +127,20 @@ const styles = StyleSheet.create({
   eloBadge: {
     position: 'absolute',
     top: SCREEN_HEIGHT / 2,
-    right: -80,
+    right: -110,
+    transform: [{ translateY: -275 }],
+    width: 550,
+    height: 550,
+    zIndex: 100,
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+  rulesBadge: {
+    position: 'absolute',
+    top: SCREEN_HEIGHT / 2,
+    left: -30,
     transform: [{ translateY: -212 }],
     width: 423,
     height: 423,
