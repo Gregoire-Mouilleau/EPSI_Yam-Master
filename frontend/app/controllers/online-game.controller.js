@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Animated, Image } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Animated, Image, ImageBackground } from "react-native";
 import { SocketContext } from '../contexts/socket.context';
 import { AuthContext } from '../contexts/auth.context';
 import { getAvatarSource } from '../constants/avatars';
@@ -10,6 +10,7 @@ import PlayerDeck from '../components/board/decks/player-deck.component';
 import OpponentDeck from '../components/board/decks/opponent-deck.component';
 import Grid from '../components/board/grid/grid.component';
 import Choices from '../components/board/choices/choices.component';
+import DiceRollingArea from '../components/board/decks/dice-rolling-area.component';
 
 
 export default function OnlineGameController({ navigation, language = 'FR', onGameStateChange }) {
@@ -26,6 +27,10 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
     const [pseudoOpponent, setPseudoOpponent] = useState(null);
     const [avatarKeyPlayer, setAvatarKeyPlayer] = useState(null);
     const [avatarKeyOpponent, setAvatarKeyOpponent] = useState(null);
+    const [playerDices, setPlayerDices] = useState([]);
+    const [opponentDices, setOpponentDices] = useState([]);
+    const [isDiceRolling, setIsDiceRolling] = useState(false);
+    const [displayRollButton, setDisplayRollButton] = useState(false);
     const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
@@ -66,6 +71,13 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
             }
         }
     }, [inGame]);
+
+    const handleDiceLock = (index) => {
+        const dice = playerDices[index];
+        if (dice && dice.value && displayRollButton) {
+            socket.emit('game.dices.lock', dice.id);
+        }
+    };
 
     useEffect(() => {
         console.log('[emit][get.state]:', socket.id);
@@ -111,10 +123,38 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
             navigation.navigate('HomeScreen');
         });
 
+        socket.on('game.deck.view-state', (data) => {
+            if (data['displayPlayerDeck'] && data['dices']) {
+                const prevDices = playerDices;
+                const newDices = data['dices'];
+                
+                // Détecter si les dés ont changé (nouveau lancer)
+                const hasChanged = newDices.some((dice, idx) => 
+                    prevDices[idx] && dice.value !== prevDices[idx].value && !dice.locked
+                );
+                
+                if (hasChanged) {
+                    setIsDiceRolling(true);
+                    setTimeout(() => setIsDiceRolling(false), 800);
+                }
+                
+                setPlayerDices(newDices);
+                setDisplayRollButton(data['displayRollButton'] || false);
+            }
+            
+            if (data['displayOpponentDeck'] && data['dices']) {
+                setOpponentDices(data['dices']);
+            }
+        });
+
         return () => {
             console.log('[cleanup][queue.leave]:', socket.id);
             socket.emit("queue.leave");
             socket.off('queue.added');
+            socket.off('queue.left');
+            socket.off('game.start');
+            socket.off('opponent.disconnected');
+            socket.off('game.deck.view-state');
             socket.off('queue.left');
             socket.off('game.start');
             socket.off('opponent.disconnected');
@@ -141,12 +181,36 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
         return (
             <View style={styles.gameContainer}>
                 <View style={styles.gameBoard}>
-                    <OpponentTimer />
-                    <OpponentDeck />
-                    <Grid />
-                    <Choices />
-                    <PlayerDeck />
-                    <PlayerTimer />
+                    {/* Zone de jeu principale (gauche) */}
+                    <View style={styles.leftSection}>
+                        <OpponentTimer />
+                        <Grid />
+                        <Choices />
+                        <PlayerTimer />
+                    </View>
+                    
+                    {/* Zone des dés (droite) */}
+                    <View style={styles.rightSection}>
+                        <View style={styles.topIndicatorContainer}>
+                            <OpponentDeck opponentDices={opponentDices} />
+                        </View>
+                        <View style={styles.plateauContainer}>
+                            <ImageBackground 
+                                source={require('../../assets/plateau.png')} 
+                                style={styles.diceRollingZone}
+                                resizeMode="contain"
+                            >
+                                <DiceRollingArea 
+                                    dices={playerDices} 
+                                    isRolling={isDiceRolling} 
+                                    onDicePress={handleDiceLock}
+                                />
+                            </ImageBackground>
+                        </View>
+                        <View style={styles.bottomButtonContainer}>
+                            <PlayerDeck />
+                        </View>
+                    </View>
                 </View>
             </View>
         );
@@ -353,7 +417,59 @@ const styles = StyleSheet.create({
     },
     gameBoard: {
         flex: 1,
+        flexDirection: 'row',
         padding: 10,
+    },
+    leftSection: {
+        flex: 3,
         justifyContent: 'space-between',
+        paddingRight: 10,
+    },
+    rightSection: {
+        flex: 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingLeft: 10,
+    },
+    topIndicatorContainer: {
+        position: 'absolute',
+        top: 10,
+        zIndex: 10,
+    },
+    bottomButtonContainer: {
+        position: 'absolute',
+        bottom: 10,
+        zIndex: 10,
+    },
+    plateauContainer: {
+        width: '110%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    diceZoneTitle: {
+        backgroundColor: '#5C4033',
+        padding: 8,
+        borderRadius: 8,
+        marginBottom: 10,
+        borderWidth: 2,
+        borderColor: '#D4AF37',
+    },
+    diceZoneTitleText: {
+        color: '#FFD700',
+        fontSize: 14,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        letterSpacing: 1,
+    },
+    diceRollingZone: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    diceRollingZoneText: {
+        fontSize: 60,
+        opacity: 0.3,
     },
 });

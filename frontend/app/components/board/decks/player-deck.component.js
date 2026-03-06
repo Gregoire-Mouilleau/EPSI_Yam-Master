@@ -49,38 +49,16 @@ const PlayerDeck = () => {
       {displayPlayerDeck && (
 
         <>
-          {displayRollButton && (
-
-            <>
-              <View style={styles.rollInfoContainer}>
-                <Text style={styles.rollInfoText}>
-                  Lancer {rollsCounter} / {rollsMaximum}
-                </Text>
-              </View>
-            </>
-
-          )}
-
-          <View style={styles.diceContainer}>
-            {dices.map((diceData, index) => (
-              <Dice
-                key={diceData.id}
-                index={index}
-                locked={diceData.locked}
-                value={diceData.value}
-                onPress={toggleDiceLock}
-              />
-            ))}
+          <View style={styles.rollInfoContainer}>
+            <Text style={styles.rollInfoText}>
+              Lancer {rollsCounter} / {rollsMaximum}
+            </Text>
           </View>
 
           {displayRollButton && (
-
-            <>
-              <TouchableOpacity style={styles.rollButton} onPress={rollDices}>
-                <Text style={styles.rollButtonText}>Roll</Text>
-              </TouchableOpacity>
-            </>
-
+            <TouchableOpacity style={styles.rollButton} onPress={rollDices}>
+              <Text style={styles.rollButtonText}>🎲 LANCER LES DÉS</Text>
+            </TouchableOpacity>
           )}
         </>
       )}
@@ -91,38 +69,47 @@ const PlayerDeck = () => {
 
 const styles = StyleSheet.create({
   deckPlayerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: "black"
+    width: '100%',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    alignItems: 'center',
   },
   rollInfoContainer: {
-    marginBottom: 10,
+    marginBottom: 8,
+    alignItems: 'center',
   },
   rollInfoText: {
     fontSize: 14,
-    fontStyle: "italic",
-  },
-  diceContainer: {
-    flexDirection: "row",
-    width: "70%",
-    justifyContent: "space-between",
-    marginBottom: 10,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   rollButton: {
-    width: "30%",
-    backgroundColor: "green",
-    paddingVertical: 10,
-    borderRadius: 5,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "black"
+    backgroundColor: '#228B22',
+    paddingVertical: 14,
+    paddingHorizontal: 35,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#32CD32',
+    shadowColor: '#00FF00',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+    elevation: 8,
   },
   rollButtonText: {
     fontSize: 18,
-    color: "white",
-    fontWeight: "bold",
+    color: 'white',
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
 });
 
