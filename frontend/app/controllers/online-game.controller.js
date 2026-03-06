@@ -1,22 +1,49 @@
 import React, { useEffect, useState, useContext } from "react";
-import { StyleSheet, Text, View, Button } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Animated, Image } from "react-native";
 import { SocketContext } from '../contexts/socket.context';
+import { AuthContext } from '../contexts/auth.context';
+import { getAvatarSource } from '../constants/avatars';
+import { getHomeTexts } from '../i18n';
 
 
-export default function OnlineGameController({ navigation }) {
+export default function OnlineGameController({ navigation, language = 'FR' }) {
 
     const socket = useContext(SocketContext);
+    const { user } = useContext(AuthContext);
+    const texts = getHomeTexts(language);
 
     const [inQueue, setInQueue] = useState(false);
     const [inGame, setInGame] = useState(false);
     const [idOpponent, setIdOpponent] = useState(null);
+    const [pseudoPlayer, setPseudoPlayer] = useState(null);
+    const [pseudoOpponent, setPseudoOpponent] = useState(null);
+    const [avatarKeyPlayer, setAvatarKeyPlayer] = useState(null);
+    const [avatarKeyOpponent, setAvatarKeyOpponent] = useState(null);
+    const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, {
+                    toValue: 1.05,
+                    duration: 1000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 1,
+                    duration: 1000,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+    }, []);
 
     useEffect(() => {
         console.log('[emit][get.state]:', socket.id);
         socket.emit("get.state");
         
-        console.log('[emit][queue.join]:', socket.id);
-        socket.emit("queue.join");
+        console.log('[emit][queue.join]:', socket.id, user?.pseudo);
+        socket.emit("queue.join", { pseudo: user?.pseudo });
         
         setInQueue(false);
         setInGame(false);
@@ -36,6 +63,10 @@ export default function OnlineGameController({ navigation }) {
             setInQueue(data['inQueue']);
             setInGame(data['inGame']);
             setIdOpponent(data['idOpponent']);
+            setPseudoPlayer(data['pseudoPlayer']);
+            setPseudoOpponent(data['pseudoOpponent']);
+            setAvatarKeyPlayer(data['avatarKeyPlayer'] || 'avatar_1');
+            setAvatarKeyOpponent(data['avatarKeyOpponent'] || 'avatar_1');
         });
 
         socket.on('opponent.disconnected', (data) => {
@@ -68,43 +99,58 @@ export default function OnlineGameController({ navigation }) {
     return (
         <View style={styles.container}>
             {!inQueue && !inGame && (
-                <>
-                    <Text style={styles.paragraph}>
-                        Waiting for server datas...
-                    </Text>
-                </>
+                <Animated.View style={[styles.card, { transform: [{ scale: pulseAnim }] }]}>
+                    <Text style={styles.emoji}>⏳</Text>
+                    <Text style={styles.title}>{texts.queueConnecting}</Text>
+                    <Text style={styles.text}>{texts.queueConnectingDesc}</Text>
+                    <ActivityIndicator size="large" color="#FDE047" style={{ marginTop: 20 }} />
+                </Animated.View>
             )}
 
             {inQueue && (
-                <>
-                    <Text style={styles.paragraph}>
-                        Waiting for another player...
-                    </Text>
-                    <View style={{ marginTop: 20 }}>
-                        <Button
-                            title="Quitter la file d'attente"
-                            onPress={handleLeaveQueue}
-                            color="#ff6347"
-                        />
-                    </View>
-                </>
+                <Animated.View style={[styles.card, { transform: [{ scale: pulseAnim }] }]}>
+                    <Text style={styles.emoji}>🔍</Text>
+                    <Text style={styles.title}>{texts.queueSearching}</Text>
+                    <Text style={styles.text}>{texts.queueSearchingDesc}</Text>
+                    <ActivityIndicator size="large" color="#FDE047" style={{ marginTop: 20 }} />
+                    
+                    <TouchableOpacity
+                        style={styles.leaveButton}
+                        onPress={handleLeaveQueue}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.leaveButtonText}>{texts.queueLeave}</Text>
+                    </TouchableOpacity>
+                </Animated.View>
             )}
 
             {inGame && (
-                <>
-                    <Text style={styles.paragraph}>
-                        Game found !
-                    </Text>
-                    <Text style={styles.paragraph}>
-                        Player - {socket.id} -
-                    </Text>
-                    <Text style={styles.paragraph}>
-                        - vs -
-                    </Text>
-                    <Text style={styles.paragraph}>
-                        Player - {idOpponent} -
-                    </Text>
-                </>
+                <View style={styles.card}>
+                    <Text style={styles.emoji}>🎮</Text>
+                    <Text style={styles.title}>{texts.queueMatchFound}</Text>
+                    
+                    <View style={styles.vsContainer}>
+                        <View style={styles.playerCard}>
+                            <Image 
+                                source={getAvatarSource(avatarKeyPlayer || 'avatar_1')} 
+                                style={styles.avatarImage}
+                            />
+                            <Text style={styles.playerName}>{pseudoPlayer}</Text>
+                        </View>
+                        
+                        <Text style={styles.vsText}>VS</Text>
+                        
+                        <View style={styles.playerCard}>
+                            <Image 
+                                source={getAvatarSource(avatarKeyOpponent || 'avatar_1')} 
+                                style={styles.avatarImage}
+                            />
+                            <Text style={styles.playerName}>{pseudoOpponent}</Text>
+                        </View>
+                    </View>
+                    
+                    <Text style={styles.startingText}>{texts.queueStarting}</Text>
+                </View>
             )}
         </View>
     );
@@ -113,13 +159,128 @@ export default function OnlineGameController({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#fff",
-        alignItems: "center",
-        justifyContent: "center",
+        alignItems: 'center',
+        justifyContent: 'center',
         width: '100%',
         height: '100%',
+        padding: 20,
     },
-    paragraph: {
+    card: {
+        backgroundColor: 'rgba(70, 11, 0, 0.76)',
+        padding: 40,
+        borderRadius: 34,
+        borderWidth: 5,
+        borderColor: '#D89A2E',
+        alignItems: 'center',
+        maxWidth: 500,
+        width: '100%',
+        shadowColor: '#FACC15',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.75,
+        shadowRadius: 22,
+        elevation: 10,
+    },
+    emoji: {
+        fontSize: 60,
+        marginBottom: 20,
+        textShadowColor: 'rgba(250, 204, 21, 0.8)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 20,
+    },
+    title: {
+        fontSize: 32,
+        fontWeight: 'bold',
+        color: '#FDE047',
+        marginBottom: 15,
+        textAlign: 'center',
+        letterSpacing: 1,
+        textShadowColor: 'rgba(0, 0, 0, 0.8)',
+        textShadowOffset: { width: 2, height: 2 },
+        textShadowRadius: 4,
+    },
+    text: {
         fontSize: 16,
-    }
+        color: '#F6DEB2',
+        textAlign: 'center',
+        lineHeight: 24,
+    },
+    leaveButton: {
+        marginTop: 30,
+        backgroundColor: 'rgba(122, 23, 7, 0.98)',
+        paddingVertical: 15,
+        paddingHorizontal: 40,
+        borderRadius: 999,
+        borderWidth: 2,
+        borderColor: '#F9BC29',
+        shadowColor: '#FBBF24',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    leaveButtonText: {
+        color: '#FDE047',
+        fontSize: 18,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        letterSpacing: 0.4,
+    },
+    vsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        width: '100%',
+        marginTop: 20,
+        marginBottom: 20,
+    },
+    playerCard: {
+        backgroundColor: 'rgba(123, 31, 15, 0.6)',
+        padding: 15,
+        borderRadius: 12,
+        borderWidth: 3,
+        borderColor: '#E1A02C',
+        alignItems: 'center',
+        minWidth: 120,
+        shadowColor: '#FBBF24',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+    },
+    avatarImage: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        marginBottom: 10,
+        borderWidth: 3,
+        borderColor: '#D89A2E',
+    },
+    playerEmoji: {
+        fontSize: 40,
+        marginBottom: 10,
+    },
+    playerName: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FDE047',
+        textAlign: 'center',
+        letterSpacing: 0.5,
+    },
+    vsText: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#DC2626',
+        textShadowColor: 'rgba(0, 0, 0, 0.8)',
+        textShadowOffset: { width: 2, height: 2 },
+        textShadowRadius: 4,
+        marginHorizontal: 10,
+    },
+    startingText: {
+        fontSize: 18,
+        color: '#A3E635',
+        fontWeight: 'bold',
+        marginTop: 10,
+        textShadowColor: 'rgba(0, 0, 0, 0.6)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
 });

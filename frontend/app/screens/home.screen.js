@@ -262,6 +262,10 @@ export default function HomeScreen({ navigation }) {
             title={texts.playOnline}
             onPress={() => {
               ensureMusicPlayback();
+              if (!user) {
+                navigation.navigate('ProfileScreen');
+                return;
+              }
               navigation.navigate('OnlineGameScreen');
             }}
             isHovered={hoverOnline}
@@ -274,6 +278,10 @@ export default function HomeScreen({ navigation }) {
             title={texts.playVsBot}
             onPress={() => {
               ensureMusicPlayback();
+              if (!user) {
+                navigation.navigate('ProfileScreen');
+                return;
+              }
               navigation.navigate('VsBotGameScreen');
             }}
             isHovered={hoverBot}

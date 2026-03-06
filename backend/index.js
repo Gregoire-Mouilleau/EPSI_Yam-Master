@@ -6,6 +6,9 @@ const socketIo = require('socket.io');
 var uniqid = require('uniqid');
 const GameService = require('./services/game.service');
 const authRoutes = require('./routes/auth.routes');
+const db = require('./db');
+
+const getUserByPseudoStmt = db.prepare('SELECT id, pseudo, avatar_key FROM users WHERE pseudo = ?');
 
 const app = express();
 const server = http.createServer(app);
@@ -24,28 +27,32 @@ app.use('/api/auth', authRoutes);
 let games = [];
 let queue = [];
 
-const newPlayerInQueue = (socket) => {
+const newPlayerInQueue = (socket, pseudo, avatarKey) => {
 
   removePlayerFromQueue(socket);
 
-  queue.push(socket);
+  queue.push({ socket, pseudo, avatarKey });
 
   if (queue.length >= 2) {
-    const player1Socket = queue.shift();
-    const player2Socket = queue.shift();
-    createGame(player1Socket, player2Socket);
+    const player1 = queue.shift();
+    const player2 = queue.shift();
+    createGame(player1.socket, player1.pseudo, player1.avatarKey, player2.socket, player2.pseudo, player2.avatarKey);
   }
   else {
     socket.emit('queue.added', GameService.send.forPlayer.viewQueueState());
   }
 };
 
-const createGame = (player1Socket, player2Socket) => {
+const createGame = (player1Socket, player1Pseudo, player1AvatarKey, player2Socket, player2Pseudo, player2AvatarKey) => {
 
   const newGame = GameService.init.gameState();
   newGame['idGame'] = uniqid();
   newGame['player1Socket'] = player1Socket;
+  newGame['player1Pseudo'] = player1Pseudo;
+  newGame['player1AvatarKey'] = player1AvatarKey;
   newGame['player2Socket'] = player2Socket;
+  newGame['player2Pseudo'] = player2Pseudo;
+  newGame['player2AvatarKey'] = player2AvatarKey;
 
   games.push(newGame);
 
@@ -56,7 +63,7 @@ const createGame = (player1Socket, player2Socket) => {
 };
 
 const removePlayerFromQueue = (socket) => {
-  const index = queue.findIndex(s => s.id === socket.id);
+  const index = queue.findIndex(item => item.socket.id === socket.id);
   if (index !== -1) {
     queue.splice(index, 1);
   }
@@ -90,8 +97,21 @@ const removeGameBySocket = (socket) => {
 
 io.on('connection', socket => {
 
-  socket.on('queue.join', () => {
-    newPlayerInQueue(socket);
+  socket.on('queue.join', (data) => {
+    const pseudo = data?.pseudo || 'Anonymous';
+    let avatarKey = 'avatar_1';
+    
+    // Récupérer l'avatarKey depuis la DB si le pseudo existe
+    try {
+      const user = getUserByPseudoStmt.get(pseudo);
+      if (user && user.avatar_key) {
+        avatarKey = user.avatar_key;
+      }
+    } catch (error) {
+      console.error('Error fetching user avatar:', error);
+    }
+    
+    newPlayerInQueue(socket, pseudo, avatarKey);
   });
 
   socket.on('queue.leave', () => {
@@ -100,7 +120,7 @@ io.on('connection', socket => {
   });
 
   socket.on('get.state', () => {
-    const inQueue = queue.some(s => s.id === socket.id);
+    const inQueue = queue.some(item => item.socket.id === socket.id);
     if (inQueue) {
       socket.emit('queue.added', GameService.send.forPlayer.viewQueueState());
       return;

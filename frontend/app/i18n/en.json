@@ -15,5 +15,12 @@
   "leaderboardTopPlayers": "🏆 Top Players",
   "leaderboardBack": "BACK",
   "leaderboardLoading": "Loading...",
-  "leaderboardRetry": "RETRY"
+  "leaderboardRetry": "RETRY",
+  "queueConnecting": "Connecting...",
+  "queueConnectingDesc": "Please wait while we connect you to the game server.",
+  "queueSearching": "Searching for opponent...",
+  "queueSearchingDesc": "You are in the queue. We're finding you a worthy opponent!",
+  "queueLeave": "❌ Leave Queue",
+  "queueMatchFound": "Match Found!",
+  "queueStarting": "🎲 Starting game... 🎲"
 }

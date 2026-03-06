@@ -15,5 +15,12 @@
   "leaderboardTopPlayers": "🏆 Meilleurs Joueurs",
   "leaderboardBack": "RETOUR",
   "leaderboardLoading": "Chargement...",
-  "leaderboardRetry": "RÉESSAYER"
+  "leaderboardRetry": "RÉESSAYER",
+  "queueConnecting": "Connexion...",
+  "queueConnectingDesc": "Veuillez patienter pendant que nous vous connectons au serveur de jeu.",
+  "queueSearching": "Recherche d'adversaire...",
+  "queueSearchingDesc": "Vous êtes dans la file d'attente. Nous vous trouvons un adversaire digne de ce nom !",
+  "queueLeave": "❌ Quitter la file",
+  "queueMatchFound": "Match trouvé !",
+  "queueStarting": "🎲 La partie commence... 🎲"
 }

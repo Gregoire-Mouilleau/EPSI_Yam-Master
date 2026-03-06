@@ -30,7 +30,23 @@ const GameService = {
                     idOpponent:
                         (playerKey === 'player:1')
                             ? game.player2Socket.id
-                            : game.player1Socket.id
+                            : game.player1Socket.id,
+                    pseudoPlayer:
+                        (playerKey === 'player:1')
+                            ? game.player1Pseudo
+                            : game.player2Pseudo,
+                    pseudoOpponent:
+                        (playerKey === 'player:1')
+                            ? game.player2Pseudo
+                            : game.player1Pseudo,
+                    avatarKeyPlayer:
+                        (playerKey === 'player:1')
+                            ? game.player1AvatarKey
+                            : game.player2AvatarKey,
+                    avatarKeyOpponent:
+                        (playerKey === 'player:1')
+                            ? game.player2AvatarKey
+                            : game.player1AvatarKey
                 };
             },
 
