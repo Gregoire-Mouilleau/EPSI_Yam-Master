@@ -32,6 +32,54 @@ const BotService = {
         return 'balanced';
     },
 
+    // Vérifie si au moins 2 jetons sont alignés (horizontal, vertical, diagonal)
+    checkAlignedTokens: (tokenPositions) => {
+        if (tokenPositions.length < 2) return false;
+        
+        const directions = [
+            { dr: 0, dc: 1 },   // Horizontal
+            { dr: 1, dc: 0 },   // Vertical
+            { dr: 1, dc: 1 },   // Diagonal \
+            { dr: 1, dc: -1 }   // Diagonal /
+        ];
+        
+        // Pour chaque paire de jetons
+        for (let i = 0; i < tokenPositions.length; i++) {
+            for (let j = i + 1; j < tokenPositions.length; j++) {
+                const pos1 = tokenPositions[i];
+                const pos2 = tokenPositions[j];
+                
+                // Vérifier si les 2 jetons sont alignés dans une direction
+                for (const { dr, dc } of directions) {
+                    // Calculer la différence de position
+                    const rowDiff = pos2.row - pos1.row;
+                    const colDiff = pos2.col - pos1.col;
+                    
+                    // Vérifier si la différence correspond à un multiple de la direction
+                    // (les jetons sont sur la même ligne/colonne/diagonal)
+                    if (dr === 0 && rowDiff === 0 && colDiff !== 0) {
+                        // Même ligne horizontale
+                        return true;
+                    }
+                    if (dc === 0 && colDiff === 0 && rowDiff !== 0) {
+                        // Même colonne verticale
+                        return true;
+                    }
+                    if (dr === 1 && dc === 1 && rowDiff === colDiff && rowDiff !== 0) {
+                        // Même diagonale \
+                        return true;
+                    }
+                    if (dr === 1 && dc === -1 && rowDiff === -colDiff && rowDiff !== 0) {
+                        // Même diagonale /
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
+    },
+
     // Analyse les menaces d'un joueur (lignes de 3, 4, etc.)
     analysis: {
         countPlayerThreats: (grid, playerKey) => {
@@ -355,6 +403,25 @@ const BotService = {
             return [];
         }
         
+        // Compter combien de jetons le bot a posé sur la grille
+        let botTokensCount = 0;
+        const botTokenPositions = [];
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 5; c++) {
+                if (grid[r][c].owner === botKey) {
+                    botTokensCount++;
+                    botTokenPositions.push({ row: r, col: c });
+                }
+            }
+        }
+        console.log('[BOT] Jetons posés:', botTokensCount);
+        
+        // Vérifier si au moins 2 jetons sont alignés (horizontal, vertical, diagonal)
+        const hasAlignedTokens = BotService.checkAlignedTokens(botTokenPositions);
+        if (hasAlignedTokens) {
+            console.log('[BOT] ⚡ Jetons alignés détectés !');
+        }
+        
         // STRATÉGIE DE JEU : Évaluer les coups critiques
         const strategy = BotService.determineStrategy(grid, botKey, playerKey);
         const choicesWithScores = usableChoices.map(choice => {
@@ -378,7 +445,50 @@ const BotService = {
             return BotService.getDicesForCombo(dices, blockingChoice.choice.id, counts);
         }
         
-        // PRIORITÉ 3 : COMBOS SELON LES DÉS ACTUELS
+        // PRIORITÉ 3 : MODE STRATÉGIQUE (après 3 jetons OU 2+ jetons alignés)
+        const shouldUseStrategy = (botTokensCount >= 3) || (botTokensCount >= 2 && hasAlignedTokens);
+        
+        if (shouldUseStrategy) {
+            console.log('[BOT] 🎯 MODE STRATÉGIQUE - Analyser les meilleures opportunités');
+            
+            // Prendre les 5 meilleurs choix stratégiques (non gagnants/bloquants mais à bon score)
+            const strategicChoices = choicesWithScores.filter(c => c.bestScore > 0 && c.bestScore < 4000).slice(0, 5);
+            
+            if (strategicChoices.length > 0) {
+                console.log('[BOT] Choix stratégiques:', strategicChoices.map(c => `${c.choice.id}(${c.bestScore})`).join(', '));
+                
+                // Évaluer la "proximité" de chaque figure avec les dés actuels
+                const proximityScores = strategicChoices.map(sc => {
+                    const proximity = BotService.evaluateComboProximity(dices, sc.choice.id, counts);
+                    return { 
+                        choice: sc.choice, 
+                        strategicScore: sc.bestScore, 
+                        proximity: proximity,
+                        totalScore: sc.bestScore * 0.6 + proximity * 400 // Pondération : stratégie 60% + proximité 40%
+                    };
+                });
+                
+                // Trier par score total (stratégie + proximité)
+                proximityScores.sort((a, b) => b.totalScore - a.totalScore);
+                
+                console.log('[BOT] Scores totaux:', proximityScores.map(p => 
+                    `${p.choice.id}(strat:${p.strategicScore}, prox:${p.proximity}, total:${Math.round(p.totalScore)})`
+                ).join(', '));
+                
+                // Prendre la meilleure option et essayer de construire cette figure
+                const bestStrategic = proximityScores[0];
+                if (bestStrategic.proximity > 0) {
+                    console.log('[BOT] 🎯 Cibler', bestStrategic.choice.id, '- Proximité:', bestStrategic.proximity);
+                    const dicesToKeep = BotService.getDicesForTargetCombo(dices, bestStrategic.choice.id, counts);
+                    if (dicesToKeep.length > 0) {
+                        return dicesToKeep;
+                    }
+                }
+            }
+        }
+        
+        // PRIORITÉ 4 : COMBOS SELON LES DÉS ACTUELS (mode opportuniste - début de partie)
+        console.log('[BOT] 🎲 MODE OPPORTUNISTE - Chercher les meilleures figures possibles');
         
         // YAM (5 identiques) - TOUJOURS garder
         if (maxCount === 5) {
@@ -562,6 +672,195 @@ const BotService = {
         const points = parseInt(comboId);
         if (!isNaN(points) && points >= 1 && points <= 6) {
             return dices.filter(dice => parseInt(dice.value) === points);
+        }
+        
+        return [];
+    },
+
+    // Évalue la proximité entre les dés actuels et une figure ciblée (score 0-10)
+    evaluateComboProximity: (dices, comboId, counts) => {
+        // YAM : 5 identiques
+        if (comboId === 'yam' || comboId.startsWith('yam')) {
+            const maxCount = Math.max(...counts.slice(1));
+            if (maxCount === 5) return 10;
+            if (maxCount === 4) return 8;
+            if (maxCount === 3) return 5;
+            if (maxCount === 2) return 2;
+            return 0;
+        }
+        
+        // CARRÉ : 4 identiques
+        if (comboId === 'carre' || comboId.startsWith('carre')) {
+            const maxCount = Math.max(...counts.slice(1));
+            if (maxCount >= 4) return 10;
+            if (maxCount === 3) return 7;
+            if (maxCount === 2) return 3;
+            return 0;
+        }
+        
+        // FULL : 3 identiques + 2 identiques
+        if (comboId === 'full' || comboId.startsWith('full')) {
+            const sortedCounts = counts.slice(1).sort((a, b) => b - a);
+            if (sortedCounts[0] === 3 && sortedCounts[1] === 2) return 10;
+            if (sortedCounts[0] === 3 && sortedCounts[1] === 1) return 6;
+            if (sortedCounts[0] === 2 && sortedCounts[1] === 2) return 5;
+            if (sortedCounts[0] === 3) return 4;
+            if (sortedCounts[0] === 2) return 2;
+            return 0;
+        }
+        
+        // BRELAN : 3 identiques (peut avoir un suffixe comme brelan2, brelan3)
+        if (comboId === 'brelan' || comboId.startsWith('brelan')) {
+            // Extraire la valeur ciblée si présente (brelan2 = 2)
+            const targetValue = parseInt(comboId.replace('brelan', ''));
+            
+            if (!isNaN(targetValue)) {
+                // BRELAN spécifique (ex: brelan2)
+                if (counts[targetValue] >= 3) return 10;
+                if (counts[targetValue] === 2) return 6;
+                if (counts[targetValue] === 1) return 2;
+                return 0;
+            } else {
+                // BRELAN général (n'importe quelle valeur)
+                const maxCount = Math.max(...counts.slice(1));
+                if (maxCount >= 3) return 10;
+                if (maxCount === 2) return 5;
+                return 0;
+            }
+        }
+        
+        // SUITE : 5 consécutifs
+        if (comboId === 'suite' || comboId.startsWith('suite')) {
+            const sortedValues = dices.map(d => parseInt(d.value)).sort((a, b) => a - b);
+            const uniqueValues = [...new Set(sortedValues)];
+            const longestSeq = BotService.findLongestSequence(uniqueValues);
+            
+            if (longestSeq.length === 5) return 10;
+            if (longestSeq.length === 4) return 7;
+            if (longestSeq.length === 3) return 4;
+            if (longestSeq.length === 2) return 2;
+            return 0;
+        }
+        
+        // POINTS (1-6) : paires de la valeur spécifique
+        const points = parseInt(comboId);
+        if (!isNaN(points) && points >= 1 && points <= 6) {
+            if (counts[points] >= 3) return 10;
+            if (counts[points] === 2) return 7;
+            if (counts[points] === 1) return 3;
+            return 0;
+        }
+        
+        return 0;
+    },
+
+    // Retourne les dés à garder pour cibler une figure spécifique
+    getDicesForTargetCombo: (dices, comboId, counts) => {
+        // YAM : Garder la valeur la plus fréquente
+        if (comboId === 'yam' || comboId.startsWith('yam')) {
+            let maxCount = 0;
+            let maxValue = 0;
+            for (let i = 1; i <= 6; i++) {
+                if (counts[i] > maxCount) {
+                    maxCount = counts[i];
+                    maxValue = i;
+                }
+            }
+            if (maxCount >= 2) {
+                console.log('[BOT] 🎯 Cibler YAM - Garder', maxCount, 'x', maxValue);
+                return dices.filter(dice => parseInt(dice.value) === maxValue);
+            }
+        }
+        
+        // CARRÉ : Garder la valeur la plus fréquente
+        if (comboId === 'carre' || comboId.startsWith('carre')) {
+            let maxCount = 0;
+            let maxValue = 0;
+            for (let i = 1; i <= 6; i++) {
+                if (counts[i] > maxCount) {
+                    maxCount = counts[i];
+                    maxValue = i;
+                }
+            }
+            if (maxCount >= 2) {
+                console.log('[BOT] 🎯 Cibler CARRÉ - Garder', maxCount, 'x', maxValue);
+                return dices.filter(dice => parseInt(dice.value) === maxValue);
+            }
+        }
+        
+        // FULL : Garder brelan + paire ou deux paires
+        if (comboId === 'full' || comboId.startsWith('full')) {
+            const pairs = [];
+            for (let i = 1; i <= 6; i++) {
+                if (counts[i] >= 2) pairs.push({ value: i, count: counts[i] });
+            }
+            pairs.sort((a, b) => b.count - a.count);
+            
+            if (pairs.length >= 2) {
+                console.log('[BOT] 🎯 Cibler FULL - Garder', pairs[0].count, 'x', pairs[0].value, '+', pairs[1].count, 'x', pairs[1].value);
+                return dices.filter(d => {
+                    const val = parseInt(d.value);
+                    return val === pairs[0].value || val === pairs[1].value;
+                });
+            } else if (pairs.length === 1 && pairs[0].count >= 2) {
+                console.log('[BOT] 🎯 Cibler FULL - Garder', pairs[0].count, 'x', pairs[0].value);
+                return dices.filter(dice => parseInt(dice.value) === pairs[0].value);
+            }
+        }
+        
+        // BRELAN : Garder la valeur ciblée ou la plus fréquente
+        if (comboId === 'brelan' || comboId.startsWith('brelan')) {
+            const targetValue = parseInt(comboId.replace('brelan', ''));
+            
+            if (!isNaN(targetValue) && counts[targetValue] >= 1) {
+                // BRELAN spécifique
+                console.log('[BOT] 🎯 Cibler BRELAN de', targetValue, '- Garder', counts[targetValue], 'dé(s)');
+                return dices.filter(dice => parseInt(dice.value) === targetValue);
+            } else {
+                // BRELAN général - garder la valeur la plus fréquente
+                let maxCount = 0;
+                let maxValue = 0;
+                for (let i = 1; i <= 6; i++) {
+                    if (counts[i] > maxCount) {
+                        maxCount = counts[i];
+                        maxValue = i;
+                    }
+                }
+                if (maxCount >= 2) {
+                    console.log('[BOT] 🎯 Cibler BRELAN - Garder', maxCount, 'x', maxValue);
+                    return dices.filter(dice => parseInt(dice.value) === maxValue);
+                }
+            }
+        }
+        
+        // SUITE : Garder la plus longue séquence
+        if (comboId === 'suite' || comboId.startsWith('suite')) {
+            const sortedValues = dices.map(d => parseInt(d.value)).sort((a, b) => a - b);
+            const uniqueValues = [...new Set(sortedValues)];
+            const longestSeq = BotService.findLongestSequence(uniqueValues);
+            
+            if (longestSeq.length >= 3) {
+                const dicesToKeep = [];
+                const usedValues = new Set();
+                for (const dice of dices) {
+                    const val = parseInt(dice.value);
+                    if (longestSeq.includes(val) && !usedValues.has(val)) {
+                        dicesToKeep.push(dice);
+                        usedValues.add(val);
+                    }
+                }
+                console.log('[BOT] 🎯 Cibler SUITE - Garder séquence:', longestSeq);
+                return dicesToKeep;
+            }
+        }
+        
+        // POINTS (1-6) : Garder tous les dés de cette valeur
+        const points = parseInt(comboId);
+        if (!isNaN(points) && points >= 1 && points <= 6) {
+            if (counts[points] >= 1) {
+                console.log('[BOT] 🎯 Cibler valeur', points, '- Garder', counts[points], 'dé(s)');
+                return dices.filter(dice => parseInt(dice.value) === points);
+            }
         }
         
         return [];
