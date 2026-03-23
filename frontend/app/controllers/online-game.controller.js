@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useContext } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Animated, Image, ImageBackground } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SocketContext } from '../contexts/socket.context';
 import { AuthContext } from '../contexts/auth.context';
 import { getAvatarSource } from '../constants/avatars';
@@ -12,6 +13,7 @@ import Grid from '../components/board/grid/grid.component';
 import Choices from '../components/board/choices/choices.component';
 import DiceRollingArea from '../components/board/decks/dice-rolling-area.component';
 import GameEndModal from '../components/board/game-end-modal.component';
+import DisconnectionModal from '../components/board/disconnection-modal.component';
 
 
 export default function OnlineGameController({ navigation, language = 'FR', onGameStateChange }) {
@@ -39,6 +41,11 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
     // États pour la fin de partie
     const [gameEnded, setGameEnded] = useState(false);
     const [gameEndData, setGameEndData] = useState(null);
+    
+    // États pour le modal de déconnexion
+    const [disconnectionModalVisible, setDisconnectionModalVisible] = useState(false);
+    const [disconnectionStatus, setDisconnectionStatus] = useState('waiting'); // 'waiting', 'reconnected', 'forfeit'
+    const [disconnectionWaitTime, setDisconnectionWaitTime] = useState(180);
     
     // Refs pour garder les valeurs des dés à jour dans le socket listener
     const playerDicesRef = React.useRef([]);
@@ -97,6 +104,21 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
         console.log('[emit][get.state]:', socket.id);
         socket.emit("get.state");
         
+        // Tentative de reconnexion automatique
+        const attemptReconnection = async () => {
+            try {
+                const previousSocketId = await AsyncStorage.getItem('onlineGameSocketId');
+                if (previousSocketId && previousSocketId !== socket.id) {
+                    console.log('[reconnect][attempt]:', previousSocketId, '→', socket.id);
+                    socket.emit('game.reconnect', { previousSocketId });
+                }
+            } catch (error) {
+                console.error('[reconnect][storage-error]:', error);
+            }
+        };
+        
+        attemptReconnection();
+        
         console.log('[emit][queue.join]:', socket.id, user?.pseudo);
         socket.emit("queue.join", { pseudo: user?.pseudo });
         
@@ -113,7 +135,7 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
             console.log('[listen][queue.left]:', data);
         });
 
-        socket.on('game.start', (data) => {
+        socket.on('game.start', async (data) => {
             console.log('[listen][game.start]:', data);
             setInQueue(data['inQueue']);
             setInGame(data['inGame']);
@@ -122,11 +144,24 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
             setPseudoOpponent(data['pseudoOpponent']);
             setAvatarKeyPlayer(data['avatarKeyPlayer'] || 'avatar_1');
             setAvatarKeyOpponent(data['avatarKeyOpponent'] || 'avatar_1');
+            
+            // Sauvegarder le socket ID pour la reconnexion
+            try {
+                await AsyncStorage.setItem('onlineGameSocketId', socket.id);
+                console.log('[storage][socket-id-saved]:', socket.id);
+            } catch (error) {
+                console.error('[storage][save-error]:', error);
+            }
         });
 
-        socket.on('opponent.disconnected', (data) => {
+        socket.on('opponent.disconnected', async (data) => {
             console.log('[listen][opponent.disconnected]:', data);
-            alert('Votre adversaire s\'est déconnecté');
+            // Nettoyer le socket ID stocké
+            try {
+                await AsyncStorage.removeItem('onlineGameSocketId');
+            } catch (error) {
+                console.error('[storage][remove-error]:', error);
+            }
             setInQueue(false);
             setInGame(false);
             setShowGameBoard(false);
@@ -135,6 +170,77 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                 onGameStateChange(false);
             }
             navigation.navigate('HomeScreen');
+        });
+
+        socket.on('opponent.disconnected.waiting', (data) => {
+            console.log('[listen][opponent.disconnected.waiting]:', data);
+            setDisconnectionStatus('waiting');
+            setDisconnectionWaitTime(data.waitTime || 180);
+            setDisconnectionModalVisible(true);
+        });
+
+        socket.on('opponent.reconnected', (data) => {
+            console.log('[listen][opponent.reconnected]:', data);
+            setDisconnectionStatus('reconnected');
+            setTimeout(() => {
+                setDisconnectionModalVisible(false);
+            }, 2000);
+        });
+        
+        socket.on('game.reconnected', (data) => {
+            console.log('[listen][game.reconnected]:', data);
+            // La reconnexion a réussi, le modal va se fermer automatiquement
+            console.log('[reconnect][success]');
+        });
+        
+        socket.on('game.reconnect.error', async (data) => {
+            console.log('[listen][game.reconnect.error]:', data);
+            // Échec de reconnexion, nettoyer le socket ID
+            try {
+                await AsyncStorage.removeItem('onlineGameSocketId');
+            } catch (error) {
+                console.error('[storage][remove-error]:', error);
+            }
+        });
+
+        socket.on('game.end', async (data) => {
+            console.log('[listen][game.end]:', data);
+            
+            // Nettoyer le socket ID stocké
+            try {
+                await AsyncStorage.removeItem('onlineGameSocketId');
+            } catch (error) {
+                console.error('[storage][remove-error]:', error);
+            }
+            
+            if (data.reason === 'disconnect') {
+                setDisconnectionStatus('forfeit');
+                setDisconnectionModalVisible(true);
+                
+                // Masquer le modal après 3 secondes et afficher l'écran de fin normal
+                setTimeout(() => {
+                    setDisconnectionModalVisible(false);
+                    setGameEnded(true);
+                    setGameEndData({
+                        winner: data.winner,
+                        reason: data.reason || 'normal',
+                        message: data.message,
+                        player1Score: data.player1Score,
+                        player2Score: data.player2Score,
+                        playerKey: data.playerKey
+                    });
+                }, 3000);
+            } else {
+                setGameEnded(true);
+                setGameEndData({
+                    winner: data.winner,
+                    reason: data.reason || 'normal',
+                    message: data.message,
+                    player1Score: data.player1Score,
+                    player2Score: data.player2Score,
+                    playerKey: data.playerKey
+                });
+            }
         });
 
         socket.on('game.deck.view-state', (data) => {
@@ -200,6 +306,11 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
             socket.off('queue.left');
             socket.off('game.start');
             socket.off('opponent.disconnected');
+            socket.off('opponent.disconnected.waiting');
+            socket.off('opponent.reconnected');
+            socket.off('game.reconnected');
+            socket.off('game.reconnect.error');
+            socket.off('game.end');
             socket.off('game.deck.view-state');
             socket.off('game.ended');
             if (onGameStateChange) {
@@ -295,6 +406,13 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                         }}
                     />
                 )}
+                
+                {/* Modal de déconnexion */}
+                <DisconnectionModal
+                    visible={disconnectionModalVisible}
+                    status={disconnectionStatus}
+                    waitTime={disconnectionWaitTime}
+                />
             </View>
         );
     }

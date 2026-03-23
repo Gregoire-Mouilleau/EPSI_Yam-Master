@@ -12,6 +12,7 @@ import Grid from '../components/board/grid/grid.component';
 import Choices from '../components/board/choices/choices.component';
 import DiceRollingArea from '../components/board/decks/dice-rolling-area.component';
 import GameEndModal from '../components/board/game-end-modal.component';
+import ResumeGameModal from '../components/board/resume-game-modal.component';
 
 
 export default function VsBotGameController({ navigation, language = 'FR', onGameStateChange }) {
@@ -38,6 +39,11 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
     // États pour la fin de partie
     const [gameEnded, setGameEnded] = useState(false);
     const [gameEndData, setGameEndData] = useState(null);
+    
+    // États pour le modal de reprise
+    const [resumeModalVisible, setResumeModalVisible] = useState(false);
+    const [resumeData, setResumeData] = useState(null);
+    const [resumeError, setResumeError] = useState(null);
     
     // Refs pour garder les valeurs des dés à jour dans le socket listener
     const playerDicesRef = React.useRef([]);
@@ -100,6 +106,20 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
         socket.emit("vsbot.start", { pseudo: user?.pseudo });
         
         setInGame(false);
+
+        socket.on('vsbot.resume.available', (data) => {
+            console.log('[listen][vsbot.resume.available]:', data);
+            setResumeData(data);
+            setResumeError(null);
+            setResumeModalVisible(true);
+        });
+
+        socket.on('vsbot.resume.error', (data) => {
+            console.log('[listen][vsbot.resume.error]:', data);
+            setResumeData(null);
+            setResumeError(data.message || 'Erreur lors de la reprise de la partie');
+            setResumeModalVisible(true);
+        });
 
         socket.on('game.start', (data) => {
             console.log('[listen][game.start]:', data);
@@ -165,6 +185,8 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
 
         return () => {
             console.log('[cleanup] Leaving vsbot game');
+            socket.off('vsbot.resume.available');
+            socket.off('vsbot.resume.error');
             socket.off('game.start');
             socket.off('game.deck.view-state');
             socket.off('game.ended');
@@ -189,6 +211,24 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
             <View style={styles.waitingContainer}>
                 <ActivityIndicator size="large" color="#FFD700" />
                 <Text style={styles.waitingText}>Démarrage de la partie contre le Bot...</Text>
+                
+                {/* Modal de reprise de partie */}
+                <ResumeGameModal
+                    visible={resumeModalVisible}
+                    savedAt={resumeData?.savedAt}
+                    currentTurn={resumeData?.currentTurn}
+                    errorMessage={resumeError}
+                    onResume={() => {
+                        console.log('[emit][vsbot.resume]:', user?.pseudo);
+                        socket.emit('vsbot.resume', { pseudo: user?.pseudo });
+                        setResumeModalVisible(false);
+                    }}
+                    onNewGame={() => {
+                        console.log('[emit][vsbot.new]:', user?.pseudo);
+                        socket.emit('vsbot.new', { pseudo: user?.pseudo });
+                        setResumeModalVisible(false);
+                    }}
+                />
             </View>
         );
     }
@@ -263,6 +303,24 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
                     }}
                 />
             )}
+            
+            {/* Modal de reprise de partie */}
+            <ResumeGameModal
+                visible={resumeModalVisible}
+                savedAt={resumeData?.savedAt}
+                currentTurn={resumeData?.currentTurn}
+                errorMessage={resumeError}
+                onResume={() => {
+                    console.log('[emit][vsbot.resume]:', user?.pseudo);
+                    socket.emit('vsbot.resume', { pseudo: user?.pseudo });
+                    setResumeModalVisible(false);
+                }}
+                onNewGame={() => {
+                    console.log('[emit][vsbot.new]:', user?.pseudo);
+                    socket.emit('vsbot.new', { pseudo: user?.pseudo });
+                    setResumeModalVisible(false);
+                }}
+            />
         </View>
     );
 }

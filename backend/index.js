@@ -4,12 +4,23 @@ const cors = require('cors');
 const helmet = require('helmet');
 const socketIo = require('socket.io');
 var uniqid = require('uniqid');
+const fs = require('fs');
+const path = require('path');
 const GameService = require('./services/game.service');
 const BotService = require('./services/bot.service');
 const authRoutes = require('./routes/auth.routes');
 const db = require('./db');
 
 const getUserByPseudoStmt = db.prepare('SELECT id, pseudo, avatar_key FROM users WHERE pseudo = ?');
+
+// Chemin pour sauvegarder les parties vs bot
+const SAVED_GAMES_DIR = path.join(__dirname, 'data');
+const SAVED_GAMES_FILE = path.join(SAVED_GAMES_DIR, 'saved_games.json');
+
+// Créer le dossier data s'il n'existe pas
+if (!fs.existsSync(SAVED_GAMES_DIR)) {
+  fs.mkdirSync(SAVED_GAMES_DIR, { recursive: true });
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -89,6 +100,7 @@ const createGame = (player1Socket, player1Pseudo, player1AvatarKey, player2Socke
   newGame['player2Socket'] = player2Socket;
   newGame['player2Pseudo'] = player2Pseudo;
   newGame['player2AvatarKey'] = player2AvatarKey;
+  newGame['isVsBot'] = false;
 
   games.push(newGame);
 
@@ -102,50 +114,20 @@ const createGame = (player1Socket, player1Pseudo, player1AvatarKey, player2Socke
   updateClientsViewChoices(games[gameIndex]);
   updateClientsViewGrid(games[gameIndex]);
 
-  // On execute une fonction toutes les secondes (1000 ms)
-  const gameInterval = setInterval(() => {
+  // Démarrer le timer du jeu
+  startOnlineGameTimer(gameIndex);
 
-    games[gameIndex].gameState.timer--;
-
-    updateClientsViewTimers(games[gameIndex]);
-
-    // Si le timer tombe à zéro
-    if (games[gameIndex].gameState.timer === 0) {
-
-      // On change de tour en inversant le clé dans 'currentTurn'
-      games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
-
-      // Méthode du service qui renvoie la constante 'TURN_DURATION'
-      games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
-
-      // Réinitialisation du deck
-      games[gameIndex].gameState.deck = GameService.init.deck();
-
-      // Réinitialisation des choix
-      games[gameIndex].gameState.choices = GameService.init.choices();
-
-      // Reset des cases sélectionnables
-      games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
-
-      updateClientsViewTimers(games[gameIndex]);
-      updateClientsViewDecks(games[gameIndex]);
-      updateClientsViewChoices(games[gameIndex]);
-      updateClientsViewGrid(games[gameIndex]);
-    }
-
-  }, 1000);
-
-  // On stocke l'intervalle dans l'objet game pour pouvoir le nettoyer plus tard
-  games[gameIndex].gameInterval = gameInterval;
-
-  // On prévoit de couper l'horloge
-  // pour le moment uniquement quand le socket se déconnecte
+  // Gérer les déconnexions
   player1Socket.on('disconnect', () => {
-    clearInterval(gameInterval);
+    if (games[gameIndex] && games[gameIndex].gameInterval) {
+      clearInterval(games[gameIndex].gameInterval);
+    }
   });
 
   player2Socket.on('disconnect', () => {
-    clearInterval(gameInterval);
+    if (games[gameIndex] && games[gameIndex].gameInterval) {
+      clearInterval(games[gameIndex].gameInterval);
+    }
   });
 };
 
@@ -175,54 +157,15 @@ const createGameVsBot = (playerSocket, playerPseudo, playerAvatarKey) => {
   updateClientsViewChoices(games[gameIndex]);
   updateClientsViewGrid(games[gameIndex]);
 
-  // Timer du jeu (identique à createGame)
-  const gameInterval = setInterval(() => {
+  // Démarrer le timer du jeu
+  startGameTimer(gameIndex);
 
-    games[gameIndex].gameState.timer--;
-
-    // Mettre à jour seulement le joueur humain
-    games[gameIndex].player1Socket.emit('game.timer', GameService.send.forPlayer.gameTimer('player:1', games[gameIndex].gameState));
-
-    // Si le timer tombe à zéro
-    if (games[gameIndex].gameState.timer === 0) {
-
-      // On change de tour
-      games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
-
-      // Réinitialiser le timer
-      games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
-
-      // Réinitialisation du deck
-      games[gameIndex].gameState.deck = GameService.init.deck();
-
-      // Réinitialisation des choix
-      games[gameIndex].gameState.choices = GameService.init.choices();
-
-      // Reset des cases sélectionnables
-      games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
-
-      // Mettre à jour le joueur
-      games[gameIndex].player1Socket.emit('game.timer', GameService.send.forPlayer.gameTimer('player:1', games[gameIndex].gameState));
-      updateClientsViewDecks(games[gameIndex]);
-      updateClientsViewChoices(games[gameIndex]);
-      updateClientsViewGrid(games[gameIndex]);
-
-      // Si c'est maintenant le tour du bot, le faire jouer automatiquement
-      if (games[gameIndex].gameState.currentTurn === 'player:2') {
-        setTimeout(() => {
-          playBotTurn(gameIndex);
-        }, 1000); // Petite pause pour que le joueur voit le changement de tour
-      }
-    }
-
-  }, 1000);
-
-  // On stocke l'intervalle dans l'objet game
-  games[gameIndex].gameInterval = gameInterval;
-
-  // On prévoit de couper l'horloge si le joueur se déconnecte
+  // Gérer la déconnexion
   playerSocket.on('disconnect', () => {
-    clearInterval(gameInterval);
+    if (games[gameIndex] && games[gameIndex].gameInterval) {
+      clearInterval(games[gameIndex].gameInterval);
+      saveVsBotGames(); // Sauvegarder à la déconnexion
+    }
   });
 };
 
@@ -657,6 +600,269 @@ const removePlayerFromQueue = (socket) => {
   }
 };
 
+// Sauvegarder les parties vs bot dans un fichier JSON
+const saveVsBotGames = () => {
+  try {
+    const botGames = games.filter(game => game.isVsBot).map(game => ({
+      idGame: game.idGame,
+      player1Pseudo: game.player1Pseudo,
+      player1AvatarKey: game.player1AvatarKey,
+      player2Pseudo: game.player2Pseudo,
+      player2AvatarKey: game.player2AvatarKey,
+      gameState: game.gameState,
+      isVsBot: game.isVsBot,
+      botDifficulty: game.botDifficulty,
+      savedAt: new Date().toISOString()
+    }));
+    
+    fs.writeFileSync(SAVED_GAMES_FILE, JSON.stringify(botGames, null, 2));
+    console.log(`[SAVE] ${botGames.length} partie(s) vs bot sauvegardée(s)`);
+  } catch (error) {
+    console.error('[SAVE ERROR]', error);
+  }
+};
+
+// Charger les parties vs bot sauvegardées
+const loadVsBotGames = () => {
+  try {
+    if (fs.existsSync(SAVED_GAMES_FILE)) {
+      const data = fs.readFileSync(SAVED_GAMES_FILE, 'utf8');
+      const savedGames = JSON.parse(data);
+      console.log(`[LOAD] ${savedGames.length} partie(s) vs bot chargée(s)`);
+      return savedGames;
+    }
+  } catch (error) {
+    console.error('[LOAD ERROR]', error);
+  }
+  return [];
+};
+
+// Trouver une partie sauvegardée pour un joueur
+const findSavedGameForPlayer = (playerPseudo) => {
+  const savedGames = loadVsBotGames();
+  return savedGames.find(game => game.player1Pseudo === playerPseudo);
+};
+
+// Restaurer une partie vs bot pour un joueur reconnecté
+const restoreVsBotGame = (playerSocket, savedGame) => {
+  console.log(`[RESTORE] Restauration partie vs bot pour ${savedGame.player1Pseudo}`);
+  
+  const restoredGame = {
+    ...savedGame,
+    player1Socket: playerSocket,
+    player2Socket: null,
+    gameInterval: null
+  };
+  
+  games.push(restoredGame);
+  const gameIndex = GameService.utils.findGameIndexById(games, restoredGame.idGame);
+  
+  // Envoyer l'état restauré au joueur
+  games[gameIndex].player1Socket.emit('game.start', GameService.send.forPlayer.viewGameState('player:1', games[gameIndex]));
+  
+  updateClientsViewTimers(games[gameIndex]);
+  updateClientsViewDecks(games[gameIndex]);
+  updateClientsViewChoices(games[gameIndex]);
+  updateClientsViewGrid(games[gameIndex]);
+  
+  // Relancer le timer du jeu
+  startGameTimer(gameIndex);
+  
+  // Gérer la déconnexion
+  playerSocket.on('disconnect', () => {
+    if (games[gameIndex] && games[gameIndex].gameInterval) {
+      clearInterval(games[gameIndex].gameInterval);
+      saveVsBotGames(); // Sauvegarder à la déconnexion
+    }
+  });
+  
+  // Si c'est le tour du bot, le faire jouer
+  if (games[gameIndex].gameState.currentTurn === 'player:2') {
+    setTimeout(() => {
+      playBotTurn(gameIndex);
+    }, 1000);
+  }
+  
+  return restoredGame;
+};
+
+// Fonction pour démarrer le timer d'une partie vs bot
+const startGameTimer = (gameIndex) => {
+  const game = games[gameIndex];
+  if (!game || !game.isVsBot) return;
+  
+  const gameInterval = setInterval(() => {
+    if (!games[gameIndex]) {
+      clearInterval(gameInterval);
+      return;
+    }
+
+    games[gameIndex].gameState.timer--;
+
+    // Mettre à jour seulement le joueur humain
+    if (games[gameIndex].player1Socket) {
+      games[gameIndex].player1Socket.emit('game.timer', GameService.send.forPlayer.gameTimer('player:1', games[gameIndex].gameState));
+    }
+
+    // Si le timer tombe à zéro
+    if (games[gameIndex].gameState.timer === 0) {
+
+      // On change de tour
+      games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
+
+      // Réinitialiser le timer
+      games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+
+      // Réinitialisation du deck
+      games[gameIndex].gameState.deck = GameService.init.deck();
+
+      // Réinitialisation des choix
+      games[gameIndex].gameState.choices = GameService.init.choices();
+
+      // Reset des cases sélectionnables
+      games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+
+      // Mettre à jour le joueur
+      if (games[gameIndex].player1Socket) {
+        games[gameIndex].player1Socket.emit('game.timer', GameService.send.forPlayer.gameTimer('player:1', games[gameIndex].gameState));
+      }
+      updateClientsViewDecks(games[gameIndex]);
+      updateClientsViewChoices(games[gameIndex]);
+      updateClientsViewGrid(games[gameIndex]);
+
+      // Si c'est maintenant le tour du bot, le faire jouer automatiquement
+      if (games[gameIndex].gameState.currentTurn === 'player:2') {
+        setTimeout(() => {
+          playBotTurn(gameIndex);
+        }, 1000); // Petite pause pour que le joueur voit le changement de tour
+      }
+      
+      // Sauvegarder l'état après chaque tour
+      saveVsBotGames();
+    }
+
+  }, 1000);
+
+  // Stocker l'intervalle dans l'objet game
+  games[gameIndex].gameInterval = gameInterval;
+};
+
+// Fonction pour démarrer le timer d'une partie en ligne
+const startOnlineGameTimer = (gameIndex) => {
+  const game = games[gameIndex];
+  if (!game || game.isVsBot) return;
+  
+  const gameInterval = setInterval(() => {
+    if (!games[gameIndex]) {
+      clearInterval(gameInterval);
+      return;
+    }
+
+    games[gameIndex].gameState.timer--;
+
+    updateClientsViewTimers(games[gameIndex]);
+
+    // Si le timer tombe à zéro
+    if (games[gameIndex].gameState.timer === 0) {
+
+      // On change de tour en inversant le clé dans 'currentTurn'
+      games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
+
+      // Méthode du service qui renvoie la constante 'TURN_DURATION'
+      games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+
+      // Réinitialisation du deck
+      games[gameIndex].gameState.deck = GameService.init.deck();
+
+      // Réinitialisation des choix
+      games[gameIndex].gameState.choices = GameService.init.choices();
+
+      // Reset des cases sélectionnables
+      games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+
+      updateClientsViewTimers(games[gameIndex]);
+      updateClientsViewDecks(games[gameIndex]);
+      updateClientsViewChoices(games[gameIndex]);
+      updateClientsViewGrid(games[gameIndex]);
+    }
+
+  }, 1000);
+
+  // Stocker l'intervalle dans l'objet game
+  games[gameIndex].gameInterval = gameInterval;
+};
+
+// Gérer la reconnexion d'un joueur à une partie en ligne
+const reconnectToOnlineGame = (socket, previousSocketId) => {
+  const gameIndex = games.findIndex(game => 
+    !game.isVsBot && (
+      (game.player1Socket && game.player1Socket.id === previousSocketId) ||
+      (game.player2Socket && game.player2Socket.id === previousSocketId)
+    )
+  );
+  
+  if (gameIndex === -1) {
+    console.log('[RECONNECT] Aucune partie trouvée pour ce socket');
+    return false;
+  }
+  
+  const game = games[gameIndex];
+  
+  // Vérifier qu'il y a bien eu une déconnexion
+  if (!game.disconnectedPlayer) {
+    console.log('[RECONNECT] Pas de déconnexion en cours');
+    return false;
+  }
+  
+  const isPlayer1 = game.player1Socket && game.player1Socket.id === previousSocketId;
+  console.log(`[RECONNECT] Joueur ${isPlayer1 ? '1' : '2'} reconnecté`);
+  
+  // Annuler le timer de reconnexion
+  if (game.reconnectionTimer) {
+    clearTimeout(game.reconnectionTimer);
+    game.reconnectionTimer = null;
+  }
+  
+  // Remplacer le socket
+  if (isPlayer1) {
+    game.player1Socket = socket;
+  } else {
+    game.player2Socket = socket;
+  }
+  
+  // Réinitialiser l'état de déconnexion
+  game.disconnectedPlayer = null;
+  game.disconnectionTime = null;
+  
+  // Envoyer l'état de la partie au joueur reconnecté
+  const playerKey = isPlayer1 ? 'player:1' : 'player:2';
+  socket.emit('game.start', GameService.send.forPlayer.viewGameState(playerKey, games[gameIndex]));
+  socket.emit('game.reconnected', { message: 'Reconnexion réussie !' });
+  
+  updateClientsViewTimers(games[gameIndex]);
+  updateClientsViewDecks(games[gameIndex]);
+  updateClientsViewChoices(games[gameIndex]);
+  updateClientsViewGrid(games[gameIndex]);
+  
+  // Notifier l'adversaire
+  const opponentSocket = isPlayer1 ? game.player2Socket : game.player1Socket;
+  if (opponentSocket) {
+    opponentSocket.emit('opponent.reconnected', { message: 'Votre adversaire s\'est reconnecté' });
+  }
+  
+  // Relancer le timer de jeu
+  if (!game.gameInterval) {
+    startOnlineGameTimer(gameIndex);
+  }
+  
+  // Ajouter les gestionnaires d'événements
+  socket.on('disconnect', () => {
+    removeGameBySocket(socket);
+  });
+  
+  return true;
+};
+
 const findGameBySocket = (socket) => {
   return games.find(game => 
     game.player1Socket.id === socket.id || 
@@ -666,28 +872,85 @@ const findGameBySocket = (socket) => {
 
 const removeGameBySocket = (socket) => {
   const gameIndex = games.findIndex(game => 
-    game.player1Socket.id === socket.id || 
+    game.player1Socket && game.player1Socket.id === socket.id || 
     (game.player2Socket && game.player2Socket.id === socket.id)
   );
   
   if (gameIndex !== -1) {
     const game = games[gameIndex];
     
-    // Nettoyer l'intervalle du timer
+    // Pour les parties vs Bot : Sauvegarder et supprimer
+    if (game.isVsBot) {
+      console.log(`[DISCONNECT] Partie vs bot - Sauvegarde pour ${game.player1Pseudo}`);
+      
+      // Nettoyer l'intervalle du timer
+      if (game.gameInterval) {
+        clearInterval(game.gameInterval);
+      }
+      
+      // Sauvegarder avant de supprimer de la mémoire
+      saveVsBotGames();
+      
+      // Supprimer de la liste des parties actives
+      games.splice(gameIndex, 1);
+      return;
+    }
+    
+    // Pour les parties en ligne : Timer de reconnexion 3 minutes
+    const isPlayer1 = game.player1Socket && game.player1Socket.id === socket.id;
+    const disconnectedSocketId = socket.id;
+    
+    console.log(`[DISCONNECT] Partie en ligne - Timer 3min pour reconnexion`);
+    
+    // Marquer le joueur comme déconnecté
+    game.disconnectedPlayer = isPlayer1 ? 'player:1' : 'player:2';
+    game.disconnectionTime = Date.now();
+    
+    // Mettre le jeu en pause
     if (game.gameInterval) {
       clearInterval(game.gameInterval);
+      game.gameInterval = null;
     }
     
-    // Notifier l'adversaire seulement si ce n'est pas un bot
-    if (!game.isVsBot) {
-      if (game.player1Socket.id === socket.id) {
-        game.player2Socket.emit('opponent.disconnected', { message: 'Votre adversaire s\'est déconnecté' });
-      } else {
-        game.player1Socket.emit('opponent.disconnected', { message: 'Votre adversaire s\'est déconnecté' });
+    // Notifier l'adversaire
+    const opponentSocket = isPlayer1 ? game.player2Socket : game.player1Socket;
+    if (opponentSocket) {
+      opponentSocket.emit('opponent.disconnected.waiting', { 
+        message: 'Votre adversaire s\'est déconnecté. Attente de reconnexion (3 min)...',
+        waitTime: 180 // 3 minutes en secondes
+      });
+    }
+    
+    // Timer de 3 minutes
+    game.reconnectionTimer = setTimeout(() => {
+      console.log(`[TIMEOUT] Pas de reconnexion après 3 min - Victoire par forfait`);
+      
+      // Le joueur déconnecté perd, l'adversaire gagne
+      const winner = game.disconnectedPlayer === 'player:1' ? 'player:2' : 'player:1';
+      game.gameState.winner = winner;
+      
+      // Calculer les scores actuels
+      const player1Score = GameService.grid.calculateScore(game.gameState.grid, 'player:1');
+      const player2Score = GameService.grid.calculateScore(game.gameState.grid, 'player:2');
+      
+      // Déterminer le playerKey de l'adversaire qui est resté connecté
+      const opponentPlayerKey = isPlayer1 ? 'player:2' : 'player:1';
+      
+      // Notifier le joueur connecté de sa victoire
+      if (opponentSocket) {
+        opponentSocket.emit('game.end', {
+          winner: winner,
+          reason: 'disconnect',
+          message: 'Vous avez gagné par forfait !',
+          player1Score: player1Score,
+          player2Score: player2Score,
+          playerKey: opponentPlayerKey
+        });
       }
-    }
-    
-    games.splice(gameIndex, 1);
+      
+      // Nettoyer la partie
+      games.splice(gameIndex, 1);
+    }, 180000); // 3 minutes = 180000 ms
   }
 };
 
@@ -729,7 +992,72 @@ io.on('connection', socket => {
       console.error('Error fetching user avatar:', error);
     }
     
+    // Vérifier s'il existe une partie sauvegardée pour ce joueur
+    const savedGame = findSavedGameForPlayer(pseudo);
+    
+    if (savedGame && data?.resumeGame !== false) {
+      console.log(`[RESUME] Partie sauvegardée trouvée pour ${pseudo}`);
+      
+      // Demander au joueur s'il veut reprendre
+      socket.emit('vsbot.resume.available', {
+        savedAt: savedGame.savedAt,
+        currentTurn: savedGame.gameState.currentTurn
+      });
+    } else {
+      createGameVsBot(socket, pseudo, avatarKey);
+    }
+  });
+  
+  socket.on('vsbot.resume', (data) => {
+    const pseudo = data?.pseudo || 'Anonymous';
+    const savedGame = findSavedGameForPlayer(pseudo);
+    
+    if (savedGame) {
+      restoreVsBotGame(socket, savedGame);
+      
+      // Supprimer la partie du fichier de sauvegarde
+      const savedGames = loadVsBotGames();
+      const updatedGames = savedGames.filter(g => g.player1Pseudo !== pseudo);
+      fs.writeFileSync(SAVED_GAMES_FILE, JSON.stringify(updatedGames, null, 2));
+    } else {
+      socket.emit('vsbot.resume.error', { message: 'Aucune partie sauvegardée' });
+    }
+  });
+  
+  socket.on('vsbot.new', (data) => {
+    const pseudo = data?.pseudo || 'Anonymous';
+    let avatarKey = 'avatar_1';
+    
+    try {
+      const user = getUserByPseudoStmt.get(pseudo);
+      if (user && user.avatar_key) {
+        avatarKey = user.avatar_key;
+      }
+    } catch (error) {
+      console.error('Error fetching user avatar:', error);
+    }
+    
+    // Supprimer toute partie sauvegardée existante
+    const savedGames = loadVsBotGames();
+    const updatedGames = savedGames.filter(g => g.player1Pseudo !== pseudo);
+    fs.writeFileSync(SAVED_GAMES_FILE, JSON.stringify(updatedGames, null, 2));
+    
     createGameVsBot(socket, pseudo, avatarKey);
+  });
+  
+  socket.on('game.reconnect', (data) => {
+    const previousSocketId = data?.previousSocketId;
+    
+    if (!previousSocketId) {
+      socket.emit('game.reconnect.error', { message: 'Socket ID manquant' });
+      return;
+    }
+    
+    const success = reconnectToOnlineGame(socket, previousSocketId);
+    
+    if (!success) {
+      socket.emit('game.reconnect.error', { message: 'Partie introuvable ou délai dépassé' });
+    }
   });
 
   socket.on('get.state', () => {

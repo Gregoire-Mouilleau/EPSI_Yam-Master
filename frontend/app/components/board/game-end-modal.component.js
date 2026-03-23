@@ -21,12 +21,26 @@ export default function GameEndModal({
     let displayedPseudo = '';
     let displayedAvatar = null;
     
+    // Déterminer les scores en fonction du playerKey
+    let playerScore = 0;
+    let opponentScore = 0;
+    
+    if (playerKey === 'player:1') {
+        playerScore = player1Score || 0;
+        opponentScore = player2Score || 0;
+    } else {
+        playerScore = player2Score || 0;
+        opponentScore = player1Score || 0;
+    }
+    
     if (!isDraw) {
-        // Toujours afficher le gagnant, peu importe qui c'est
-        if (winner === 'player:1') {
+        // Afficher le gagnant en fonction de qui a gagné
+        if (isPlayerWinner) {
+            // Le joueur local a gagné
             displayedPseudo = pseudoPlayer;
             displayedAvatar = getAvatarSource(avatarKeyPlayer);
         } else {
+            // L'adversaire a gagné
             displayedPseudo = pseudoOpponent;
             displayedAvatar = getAvatarSource(avatarKeyOpponent);
         }
@@ -37,6 +51,8 @@ export default function GameEndModal({
             return '🏆 Ligne de 5 jetons !';
         } else if (reason === 'score') {
             return '🏆 Plateau rempli - Victoire au score !';
+        } else if (reason === 'disconnect') {
+            return isPlayerWinner ? '🏆 Victoire par forfait !' : '😔 Défaite par déconnexion';
         }
         return '';
     };
@@ -80,14 +96,14 @@ export default function GameEndModal({
                         <View style={styles.scoresContainer}>
                             <View style={styles.scoreBox}>
                                 <Text style={styles.scoreLabel}>🟢 {pseudoPlayer}</Text>
-                                <Text style={styles.scoreValue}>{player1Score} {player1Score > 1 ? 'lignes' : 'ligne'}</Text>
+                                <Text style={styles.scoreValue}>{playerScore} {playerScore > 1 ? 'lignes' : 'ligne'}</Text>
                             </View>
                             
                             <Text style={styles.vs}>VS</Text>
                             
                             <View style={styles.scoreBox}>
                                 <Text style={styles.scoreLabel}>🔴 {pseudoOpponent}</Text>
-                                <Text style={styles.scoreValue}>{player2Score} {player2Score > 1 ? 'lignes' : 'ligne'}</Text>
+                                <Text style={styles.scoreValue}>{opponentScore} {opponentScore > 1 ? 'lignes' : 'ligne'}</Text>
                             </View>
                         </View>
                     </View>

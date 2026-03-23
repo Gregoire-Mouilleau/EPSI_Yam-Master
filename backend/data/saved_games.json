@@ -1,0 +1,217 @@
+[
+  {
+    "idGame": "14us381oicmn3b651a",
+    "player1Pseudo": "JoKlaie",
+    "player1AvatarKey": "avatar_5",
+    "player2Pseudo": "🤖 Bot",
+    "player2AvatarKey": "avatar_6",
+    "gameState": {
+      "currentTurn": "player:1",
+      "timer": 3,
+      "player1Score": 0,
+      "player2Score": 0,
+      "grid": [
+        [
+          {
+            "viewContent": "1",
+            "id": "brelan1",
+            "owner": "player:2",
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "3",
+            "id": "brelan3",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Défi",
+            "id": "defi",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "4",
+            "id": "brelan4",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "6",
+            "id": "brelan6",
+            "owner": "player:2",
+            "canBeChecked": false
+          }
+        ],
+        [
+          {
+            "viewContent": "2",
+            "id": "brelan2",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Carré",
+            "id": "carre",
+            "owner": "player:2",
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Sec",
+            "id": "sec",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Full",
+            "id": "full",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "5",
+            "id": "brelan5",
+            "owner": null,
+            "canBeChecked": false
+          }
+        ],
+        [
+          {
+            "viewContent": "≤8",
+            "id": "moinshuit",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Full",
+            "id": "full",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Yam",
+            "id": "yam",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Défi",
+            "id": "defi",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Suite",
+            "id": "suite",
+            "owner": null,
+            "canBeChecked": false
+          }
+        ],
+        [
+          {
+            "viewContent": "6",
+            "id": "brelan6",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Sec",
+            "id": "sec",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Suite",
+            "id": "suite",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "≤8",
+            "id": "moinshuit",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "1",
+            "id": "brelan1",
+            "owner": null,
+            "canBeChecked": false
+          }
+        ],
+        [
+          {
+            "viewContent": "3",
+            "id": "brelan3",
+            "owner": "player:2",
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "2",
+            "id": "brelan2",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "Carré",
+            "id": "carre",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "5",
+            "id": "brelan5",
+            "owner": null,
+            "canBeChecked": false
+          },
+          {
+            "viewContent": "4",
+            "id": "brelan4",
+            "owner": null,
+            "canBeChecked": false
+          }
+        ]
+      ],
+      "choices": {
+        "isDefi": false,
+        "isSec": false,
+        "idSelectedChoice": null,
+        "availableChoices": []
+      },
+      "deck": {
+        "dices": [
+          {
+            "id": 1,
+            "value": "",
+            "locked": true
+          },
+          {
+            "id": 2,
+            "value": "",
+            "locked": true
+          },
+          {
+            "id": 3,
+            "value": "",
+            "locked": true
+          },
+          {
+            "id": 4,
+            "value": "",
+            "locked": true
+          },
+          {
+            "id": 5,
+            "value": "",
+            "locked": true
+          }
+        ],
+        "rollsCounter": 1,
+        "rollsMaximum": 3
+      }
+    },
+    "isVsBot": true,
+    "botDifficulty": "normal",
+    "savedAt": "2026-03-23T15:02:30.597Z"
+  }
+]
