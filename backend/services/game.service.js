@@ -193,6 +193,7 @@ const GameService = {
                 return {
                     displayGrid: true,
                     canSelectCells: (playerKey === gameState.currentTurn) && (gameState.choices.availableChoices.length > 0),
+                    playerKey: playerKey,
                     grid: gameState.grid
                 };
             }

@@ -136,15 +136,20 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                 const prevRollsCounter = playerRollsCounterRef.current;
                 const newRollsCounter = data['rollsCounter'];
                 
-                // Détecter si un nouveau lancer a été effectué en comparant le rollsCounter
-                const hasRolled = newRollsCounter !== prevRollsCounter && prevRollsCounter !== 0;
-                
-                if (hasRolled) {
+                // Détecter un changement de tour (rollsCounter redescend à 1)
+                if (newRollsCounter === 1 && prevRollsCounter > 1) {
+                    // Réinitialiser pour le nouveau tour
+                    playerRollsCounterRef.current = 1;
+                } else if (newRollsCounter > prevRollsCounter && prevRollsCounter > 0) {
+                    // Un lancer a été effectué
                     setIsDiceRolling(true);
                     setTimeout(() => setIsDiceRolling(false), 2200);
+                    playerRollsCounterRef.current = newRollsCounter;
+                } else {
+                    // Mise à jour simple
+                    playerRollsCounterRef.current = newRollsCounter;
                 }
                 
-                playerRollsCounterRef.current = newRollsCounter;
                 playerDicesRef.current = data['dices'];
                 setPlayerDices(data['dices']);
                 setDisplayRollButton(data['displayRollButton'] || false);
@@ -154,15 +159,20 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                 const prevOppRollsCounter = opponentRollsCounterRef.current;
                 const newOppRollsCounter = data['rollsCounter'];
                 
-                // Détecter si l'adversaire a lancé ses dés
-                const hasOpponentRolled = newOppRollsCounter !== prevOppRollsCounter && prevOppRollsCounter !== 0;
-                
-                if (hasOpponentRolled) {
+                // Détecter un changement de tour (rollsCounter redescend à 1)
+                if (newOppRollsCounter === 1 && prevOppRollsCounter > 1) {
+                    // Réinitialiser pour le nouveau tour
+                    opponentRollsCounterRef.current = 1;
+                } else if (newOppRollsCounter > prevOppRollsCounter && prevOppRollsCounter > 0) {
+                    // Un lancer a été effectué
                     setIsOpponentRolling(true);
                     setTimeout(() => setIsOpponentRolling(false), 2200);
+                    opponentRollsCounterRef.current = newOppRollsCounter;
+                } else {
+                    // Mise à jour simple
+                    opponentRollsCounterRef.current = newOppRollsCounter;
                 }
                 
-                opponentRollsCounterRef.current = newOppRollsCounter;
                 opponentDicesRef.current = data['dices'];
                 setOpponentDices(data['dices']);
                 setDisplayOpponentDeck(true);
