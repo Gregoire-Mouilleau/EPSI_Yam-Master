@@ -345,6 +345,129 @@ const GameService = {
                 })
             );
             return updatedGrid;
+        },
+
+        // Détecter les lignes de N jetons consécutifs pour un joueur
+        findLines: (grid, playerKey, lineLength) => {
+            const lines = [];
+            const rows = grid.length;
+            const cols = grid[0].length;
+
+            // Vérifier les lignes horizontales
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col <= cols - lineLength; col++) {
+                    let count = 0;
+                    const cells = [];
+                    for (let i = 0; i < lineLength; i++) {
+                        if (grid[row][col + i].owner === playerKey) {
+                            count++;
+                            cells.push({ row, col: col + i });
+                        }
+                    }
+                    if (count === lineLength) {
+                        lines.push({ type: 'horizontal', cells });
+                    }
+                }
+            }
+
+            // Vérifier les lignes verticales
+            for (let col = 0; col < cols; col++) {
+                for (let row = 0; row <= rows - lineLength; row++) {
+                    let count = 0;
+                    const cells = [];
+                    for (let i = 0; i < lineLength; i++) {
+                        if (grid[row + i][col].owner === playerKey) {
+                            count++;
+                            cells.push({ row: row + i, col });
+                        }
+                    }
+                    if (count === lineLength) {
+                        lines.push({ type: 'vertical', cells });
+                    }
+                }
+            }
+
+            // Vérifier les diagonales (\ direction)
+            for (let row = 0; row <= rows - lineLength; row++) {
+                for (let col = 0; col <= cols - lineLength; col++) {
+                    let count = 0;
+                    const cells = [];
+                    for (let i = 0; i < lineLength; i++) {
+                        if (grid[row + i][col + i].owner === playerKey) {
+                            count++;
+                            cells.push({ row: row + i, col: col + i });
+                        }
+                    }
+                    if (count === lineLength) {
+                        lines.push({ type: 'diagonal-down', cells });
+                    }
+                }
+            }
+
+            // Vérifier les diagonales (/ direction)
+            for (let row = lineLength - 1; row < rows; row++) {
+                for (let col = 0; col <= cols - lineLength; col++) {
+                    let count = 0;
+                    const cells = [];
+                    for (let i = 0; i < lineLength; i++) {
+                        if (grid[row - i][col + i].owner === playerKey) {
+                            count++;
+                            cells.push({ row: row - i, col: col + i });
+                        }
+                    }
+                    if (count === lineLength) {
+                        lines.push({ type: 'diagonal-up', cells });
+                    }
+                }
+            }
+
+            return lines;
+        },
+
+        // Calculer le score d'un joueur basé sur ses lignes de 3
+        calculateScore: (grid, playerKey) => {
+            const linesOf3 = GameService.grid.findLines(grid, playerKey, 3);
+            return linesOf3.length;
+        },
+
+        // Vérifier si la grille est pleine
+        isFull: (grid) => {
+            return grid.every(row => row.every(cell => cell.owner !== null));
+        },
+
+        // Vérifier si la partie est terminée et déterminer le gagnant
+        checkGameEnd: (grid, player1Score, player2Score) => {
+            // Vérifier si un joueur a fait une ligne de 5
+            const player1LinesOf5 = GameService.grid.findLines(grid, 'player:1', 5);
+            const player2LinesOf5 = GameService.grid.findLines(grid, 'player:2', 5);
+
+            console.log('[DEBUG] Lignes de 5 détectées:', {
+                player1: player1LinesOf5.length,
+                player2: player2LinesOf5.length,
+                player1Lines: player1LinesOf5,
+                player2Lines: player2LinesOf5
+            });
+
+            if (player1LinesOf5.length > 0) {
+                return { gameEnded: true, winner: 'player:1', reason: 'line-of-5' };
+            }
+
+            if (player2LinesOf5.length > 0) {
+                return { gameEnded: true, winner: 'player:2', reason: 'line-of-5' };
+            }
+
+            // Vérifier si la grille est pleine
+            if (GameService.grid.isFull(grid)) {
+                if (player1Score > player2Score) {
+                    return { gameEnded: true, winner: 'player:1', reason: 'score' };
+                } else if (player2Score > player1Score) {
+                    return { gameEnded: true, winner: 'player:2', reason: 'score' };
+                } else {
+                    return { gameEnded: true, winner: 'draw', reason: 'score' };
+                }
+            }
+
+            return { gameEnded: false, winner: null, reason: null };
         }
     },
     utils: {

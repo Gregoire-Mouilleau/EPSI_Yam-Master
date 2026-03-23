@@ -11,6 +11,7 @@ import OpponentDeck from '../components/board/decks/opponent-deck.component';
 import Grid from '../components/board/grid/grid.component';
 import Choices from '../components/board/choices/choices.component';
 import DiceRollingArea from '../components/board/decks/dice-rolling-area.component';
+import GameEndModal from '../components/board/game-end-modal.component';
 
 
 export default function OnlineGameController({ navigation, language = 'FR', onGameStateChange }) {
@@ -19,6 +20,7 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
     const { user } = useContext(AuthContext);
     const texts = getHomeTexts(language);
 
+    const [gameResetKey, setGameResetKey] = useState(0);
     const [inQueue, setInQueue] = useState(false);
     const [inGame, setInGame] = useState(false);
     const [showGameBoard, setShowGameBoard] = useState(false);
@@ -33,6 +35,10 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
     const [isOpponentRolling, setIsOpponentRolling] = useState(false);
     const [displayRollButton, setDisplayRollButton] = useState(false);
     const [displayOpponentDeck, setDisplayOpponentDeck] = useState(false);
+    
+    // États pour la fin de partie
+    const [gameEnded, setGameEnded] = useState(false);
+    const [gameEndData, setGameEndData] = useState(null);
     
     // Refs pour garder les valeurs des dés à jour dans le socket listener
     const playerDicesRef = React.useRef([]);
@@ -181,6 +187,12 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
             }
         });
 
+        socket.on('game.ended', (data) => {
+            console.log('[listen][game.ended]:', data);
+            setGameEnded(true);
+            setGameEndData(data);
+        });
+
         return () => {
             console.log('[cleanup][queue.leave]:', socket.id);
             socket.emit("queue.leave");
@@ -189,14 +201,12 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
             socket.off('game.start');
             socket.off('opponent.disconnected');
             socket.off('game.deck.view-state');
-            socket.off('queue.left');
-            socket.off('game.start');
-            socket.off('opponent.disconnected');
+            socket.off('game.ended');
             if (onGameStateChange) {
                 onGameStateChange(false);
             }
         };
-    }, []);
+    }, [gameResetKey]);
 
     const handleLeaveQueue = () => {
         console.log('[emit][queue.leave]:', socket.id);
@@ -213,20 +223,20 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
     // Si le plateau de jeu doit être affiché, on retourne une vue en plein écran
     if (inGame && showGameBoard) {
         return (
-            <View style={styles.gameContainer}>
+            <View key={`game-${gameResetKey}`} style={styles.gameContainer}>
                 <View style={styles.gameBoard}>
                     {/* Zone de jeu principale (gauche) */}
                     <View style={styles.leftSection}>
-                        <OpponentTimer />
-                        <Grid />
-                        <Choices />
-                        <PlayerTimer />
+                        <OpponentTimer key={`opponent-timer-${gameResetKey}`} />
+                        <Grid key={`grid-${gameResetKey}`} />
+                        <Choices key={`choices-${gameResetKey}`} />
+                        <PlayerTimer key={`player-timer-${gameResetKey}`} />
                     </View>
                     
                     {/* Zone des dés (droite) */}
                     <View style={styles.rightSection}>
                         <View style={styles.topIndicatorContainer}>
-                            <OpponentDeck displayOpponentDeck={displayOpponentDeck} />
+                            <OpponentDeck key={`opponent-deck-${gameResetKey}`} displayOpponentDeck={displayOpponentDeck} />
                         </View>
                         <View style={styles.plateauContainer}>
                             <ImageBackground 
@@ -235,6 +245,7 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                                 resizeMode="contain"
                             >
                                 <DiceRollingArea 
+                                    key={`dice-area-${gameResetKey}`}
                                     dices={displayOpponentDeck ? opponentDices : playerDices} 
                                     isRolling={displayOpponentDeck ? isOpponentRolling : isDiceRolling} 
                                     onDicePress={displayOpponentDeck ? null : handleDiceLock}
@@ -242,10 +253,48 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                             </ImageBackground>
                         </View>
                         <View style={styles.bottomButtonContainer}>
-                            <PlayerDeck />
+                            <PlayerDeck key={`player-deck-${gameResetKey}`} />
                         </View>
                     </View>
                 </View>
+
+                {/* Modal de fin de partie */}
+                {gameEnded && gameEndData && (
+                    <GameEndModal
+                        visible={gameEnded}
+                        winner={gameEndData.winner}
+                        reason={gameEndData.reason}
+                        player1Score={gameEndData.player1Score}
+                        player2Score={gameEndData.player2Score}
+                        playerKey={gameEndData.playerKey}
+                        pseudoPlayer={pseudoPlayer}
+                        pseudoOpponent={pseudoOpponent}
+                        avatarKeyPlayer={avatarKeyPlayer}
+                        avatarKeyOpponent={avatarKeyOpponent}
+                        onClose={() => {
+                            // Réinitialiser immédiatement les états de victoire pour masquer le modal
+                            setGameEnded(false);
+                            setGameEndData(null);
+                            setInGame(false);
+                            setShowGameBoard(false);
+                            
+                            if (onGameStateChange) {
+                                onGameStateChange(false);
+                            }
+                            
+                            // Quitter proprement
+                            socket.emit("queue.leave");
+                            
+                            // Naviguer vers l'écran d'accueil puis revenir pour forcer un reset complet
+                            navigation.navigate('HomeScreen');
+                            
+                            // Petit délai puis revenir à l'écran de jeu
+                            setTimeout(() => {
+                                navigation.navigate('OnlineGameScreen');
+                            }, 100);
+                        }}
+                    />
+                )}
             </View>
         );
     }

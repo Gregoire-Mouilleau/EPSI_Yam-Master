@@ -341,10 +341,113 @@ io.on('connection', socket => {
     games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
     games[gameIndex].gameState.grid = GameService.grid.selectCell(data.cellId, data.rowIndex, data.cellIndex, games[gameIndex].gameState.currentTurn, games[gameIndex].gameState.grid);
 
-    // TODO: Ici calculer le score
-    // TODO: Puis check si la partie s'arrête (lines / diagonales / no-more-gametokens)
+    // IMPORTANT : Mettre à jour la grille côté client IMMÉDIATEMENT
+    // pour que le dernier jeton soit visible avant la fin de partie
+    updateClientsViewGrid(games[gameIndex]);
 
-    // Sinon on finit le tour
+    // Étape 1 : Vérifier si quelqu'un a une ligne de 5 (victoire immédiate)
+    const player1LinesOf5 = GameService.grid.findLines(games[gameIndex].gameState.grid, 'player:1', 5);
+    const player2LinesOf5 = GameService.grid.findLines(games[gameIndex].gameState.grid, 'player:2', 5);
+
+    if (player1LinesOf5.length > 0) {
+      console.log('[DEBUG] VICTOIRE PLAYER 1 - Ligne de 5 !');
+      if (games[gameIndex].gameInterval) {
+        clearInterval(games[gameIndex].gameInterval);
+      }
+
+      games[gameIndex].player1Socket.emit('game.ended', {
+        winner: 'player:1',
+        reason: 'line-of-5',
+        player1Score: 0,
+        player2Score: 0,
+        playerKey: 'player:1'
+      });
+
+      games[gameIndex].player2Socket.emit('game.ended', {
+        winner: 'player:1',
+        reason: 'line-of-5',
+        player1Score: 0,
+        player2Score: 0,
+        playerKey: 'player:2'
+      });
+
+      // Supprimer la partie terminée
+      games.splice(gameIndex, 1);
+      return;
+    }
+
+    if (player2LinesOf5.length > 0) {
+      console.log('[DEBUG] VICTOIRE PLAYER 2 - Ligne de 5 !');
+      if (games[gameIndex].gameInterval) {
+        clearInterval(games[gameIndex].gameInterval);
+      }
+
+      games[gameIndex].player1Socket.emit('game.ended', {
+        winner: 'player:2',
+        reason: 'line-of-5',
+        player1Score: 0,
+        player2Score: 0,
+        playerKey: 'player:1'
+      });
+
+      games[gameIndex].player2Socket.emit('game.ended', {
+        winner: 'player:2',
+        reason: 'line-of-5',
+        player1Score: 0,
+        player2Score: 0,
+        playerKey: 'player:2'
+      });
+
+      // Supprimer la partie terminée
+      games.splice(gameIndex, 1);
+      return;
+    }
+
+    // Étape 2 : Vérifier si la grille est pleine
+    if (GameService.grid.isFull(games[gameIndex].gameState.grid)) {
+      console.log('[DEBUG] GRILLE PLEINE - Calcul des scores...');
+      
+      // Calculer les scores uniquement maintenant
+      games[gameIndex].gameState.player1Score = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:1');
+      games[gameIndex].gameState.player2Score = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:2');
+      
+      console.log('[DEBUG] Scores finaux:', {
+        player1Score: games[gameIndex].gameState.player1Score,
+        player2Score: games[gameIndex].gameState.player2Score
+      });
+
+      if (games[gameIndex].gameInterval) {
+        clearInterval(games[gameIndex].gameInterval);
+      }
+
+      const winner = games[gameIndex].gameState.player1Score > games[gameIndex].gameState.player2Score 
+        ? 'player:1' 
+        : games[gameIndex].gameState.player2Score > games[gameIndex].gameState.player1Score 
+          ? 'player:2' 
+          : 'draw';
+
+      games[gameIndex].player1Socket.emit('game.ended', {
+        winner: winner,
+        reason: 'score',
+        player1Score: games[gameIndex].gameState.player1Score,
+        player2Score: games[gameIndex].gameState.player2Score,
+        playerKey: 'player:1'
+      });
+
+      games[gameIndex].player2Socket.emit('game.ended', {
+        winner: winner,
+        reason: 'score',
+        player1Score: games[gameIndex].gameState.player1Score,
+        player2Score: games[gameIndex].gameState.player2Score,
+        playerKey: 'player:2'
+      });
+
+      // Supprimer la partie terminée
+      games.splice(gameIndex, 1);
+      return;
+    }
+
+    // Sinon on continue - changement de tour
     games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
     
     // Réinitialiser le timer à 30 secondes pour le nouveau joueur
