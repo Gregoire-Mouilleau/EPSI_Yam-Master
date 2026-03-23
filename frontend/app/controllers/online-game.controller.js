@@ -136,19 +136,10 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                 const prevRollsCounter = playerRollsCounterRef.current;
                 const newRollsCounter = data['rollsCounter'];
                 
-                console.log('[DEBUG] Player Deck Update:', {
-                    prevRollsCounter,
-                    newRollsCounter,
-                    displayRollButton: data['displayRollButton']
-                });
-                
                 // Détecter si un nouveau lancer a été effectué en comparant le rollsCounter
                 const hasRolled = newRollsCounter !== prevRollsCounter && prevRollsCounter !== 0;
                 
-                console.log('[DEBUG] Has rolled?', hasRolled);
-                
                 if (hasRolled) {
-                    console.log('[DEBUG] Déclenchement animation de lancer!');
                     setIsDiceRolling(true);
                     setTimeout(() => setIsDiceRolling(false), 2200);
                 }

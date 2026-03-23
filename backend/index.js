@@ -347,8 +347,8 @@ io.on('connection', socket => {
     // Sinon on finit le tour
     games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
     
-    // Laisser 5 secondes pour la transition de tour
-    games[gameIndex].gameState.timer = 5;
+    // Réinitialiser le timer à 30 secondes pour le nouveau joueur
+    games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
 
     // On remet le deck et les choix à zéro (la grille, elle, ne change pas)
     games[gameIndex].gameState.deck = GameService.init.deck();
