@@ -239,9 +239,21 @@ const GameService = {
         }
     },
     choices: {
-        findCombinations: (dices, isDefi, isSec) => {
+        findCombinations: (dices, isDefi, isSec, grid) => {
             const availableCombinations = [];
             const allCombinations = ALL_COMBINATIONS;
+
+            // Fonction helper pour vérifier si une combinaison a au moins une case libre sur la grille
+            const hasAvailableCell = (combinationId) => {
+                for (let row of grid) {
+                    for (let cell of row) {
+                        if (cell.id === combinationId && cell.owner === null) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
 
             const counts = Array(7).fill(0); // Tableau pour compter le nombre de dés de chaque valeur (de 1 à 6)
             let hasPair = false; // Pour vérifier si une paire est présente
@@ -297,14 +309,23 @@ const GameService = {
                     (combination.id === 'moinshuit' && isLessThanEqual8) ||
                     (combination.id === 'defi' && isDefi)
                 ) {
-                    availableCombinations.push(combination);
+                    const isDisabled = !hasAvailableCell(combination.id);
+                    availableCombinations.push({
+                        ...combination,
+                        disabled: isDisabled
+                    });
                 }
             });
 
             const notOnlyBrelan = availableCombinations.some(combination => !combination.id.includes('brelan'));
 
             if (isSec && availableCombinations.length > 0 && notOnlyBrelan) {
-                availableCombinations.push(allCombinations.find(combination => combination.id === 'sec'));
+                const secCombination = allCombinations.find(combination => combination.id === 'sec');
+                const isSecDisabled = !hasAvailableCell('sec');
+                availableCombinations.push({
+                    ...secCombination,
+                    disabled: isSecDisabled
+                });
             }
 
             return availableCombinations;

@@ -246,10 +246,10 @@ io.on('connection', socket => {
       const isDefi = false;
       const isSec = games[gameIndex].gameState.deck.rollsCounter === 2;
 
-      const combinations = GameService.choices.findCombinations(dices, isDefi, isSec);
+      const combinations = GameService.choices.findCombinations(dices, isDefi, isSec, games[gameIndex].gameState.grid);
       games[gameIndex].gameState.choices.availableChoices = combinations;
 
-      // Réinitialiser le timer à 30s
+      // Réinitialiser le timer à 30s (le joueur peut encore roller)
       games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
 
       // Gestion des vues
@@ -269,11 +269,12 @@ io.on('connection', socket => {
       const isDefi = false;
       const isSec = games[gameIndex].gameState.deck.rollsCounter === 2;
 
-      const combinations = GameService.choices.findCombinations(dices, isDefi, isSec);
+      const combinations = GameService.choices.findCombinations(dices, isDefi, isSec, games[gameIndex].gameState.grid);
       games[gameIndex].gameState.choices.availableChoices = combinations;
 
-      // Si on a des combinaisons possibles, on laisse 30s, sinon 4s
-      if (combinations.length > 0) {
+      // Si on a au moins une combinaison utilisable (non disabled), on laisse 30s, sinon 4s
+      const hasUsableChoice = combinations.some(combo => !combo.disabled);
+      if (hasUsableChoice) {
         games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
       } else {
         games[gameIndex].gameState.timer = 4;

@@ -49,15 +49,16 @@ const Choices = () => {
                             style={[
                                 styles.choiceButton,
                                 idSelectedChoice === choice.id && styles.selectedChoice,
-                                !canMakeChoice && styles.disabledChoice
+                                (!canMakeChoice || choice.disabled) && styles.disabledChoice
                             ]}
                             onPress={() => handleSelectChoice(choice.id)}
-                            disabled={!canMakeChoice}
+                            disabled={!canMakeChoice || choice.disabled}
                             activeOpacity={0.7}
                         >
                             <Text style={[
                                 styles.choiceText,
-                                idSelectedChoice === choice.id && styles.selectedChoiceText
+                                idSelectedChoice === choice.id && styles.selectedChoiceText,
+                                choice.disabled && styles.disabledChoiceText
                             ]}>
                                 {choice.value}
                             </Text>
@@ -161,6 +162,10 @@ const styles = StyleSheet.create({
     },
     disabledChoice: {
         opacity: 0.4,
+    },
+    disabledChoiceText: {
+        color: '#8B7355',
+        textDecorationLine: 'line-through',
     },
     noChoicesContainer: {
         flex: 1,
