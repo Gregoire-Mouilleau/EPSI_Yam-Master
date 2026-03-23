@@ -30,7 +30,15 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
     const [playerDices, setPlayerDices] = useState([]);
     const [opponentDices, setOpponentDices] = useState([]);
     const [isDiceRolling, setIsDiceRolling] = useState(false);
+    const [isOpponentRolling, setIsOpponentRolling] = useState(false);
     const [displayRollButton, setDisplayRollButton] = useState(false);
+    const [displayOpponentDeck, setDisplayOpponentDeck] = useState(false);
+    
+    // Refs pour garder les valeurs des dés à jour dans le socket listener
+    const playerDicesRef = React.useRef([]);
+    const opponentDicesRef = React.useRef([]);
+    const playerRollsCounterRef = React.useRef(0);
+    const opponentRollsCounterRef = React.useRef(0);
     const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
@@ -125,25 +133,50 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
 
         socket.on('game.deck.view-state', (data) => {
             if (data['displayPlayerDeck'] && data['dices']) {
-                const prevDices = playerDices;
-                const newDices = data['dices'];
+                const prevRollsCounter = playerRollsCounterRef.current;
+                const newRollsCounter = data['rollsCounter'];
                 
-                // Détecter si les dés ont changé (nouveau lancer)
-                const hasChanged = newDices.some((dice, idx) => 
-                    prevDices[idx] && dice.value !== prevDices[idx].value && !dice.locked
-                );
+                console.log('[DEBUG] Player Deck Update:', {
+                    prevRollsCounter,
+                    newRollsCounter,
+                    displayRollButton: data['displayRollButton']
+                });
                 
-                if (hasChanged) {
+                // Détecter si un nouveau lancer a été effectué en comparant le rollsCounter
+                const hasRolled = newRollsCounter !== prevRollsCounter && prevRollsCounter !== 0;
+                
+                console.log('[DEBUG] Has rolled?', hasRolled);
+                
+                if (hasRolled) {
+                    console.log('[DEBUG] Déclenchement animation de lancer!');
                     setIsDiceRolling(true);
-                    setTimeout(() => setIsDiceRolling(false), 800);
+                    setTimeout(() => setIsDiceRolling(false), 2200);
                 }
                 
-                setPlayerDices(newDices);
+                playerRollsCounterRef.current = newRollsCounter;
+                playerDicesRef.current = data['dices'];
+                setPlayerDices(data['dices']);
                 setDisplayRollButton(data['displayRollButton'] || false);
             }
             
             if (data['displayOpponentDeck'] && data['dices']) {
+                const prevOppRollsCounter = opponentRollsCounterRef.current;
+                const newOppRollsCounter = data['rollsCounter'];
+                
+                // Détecter si l'adversaire a lancé ses dés
+                const hasOpponentRolled = newOppRollsCounter !== prevOppRollsCounter && prevOppRollsCounter !== 0;
+                
+                if (hasOpponentRolled) {
+                    setIsOpponentRolling(true);
+                    setTimeout(() => setIsOpponentRolling(false), 2200);
+                }
+                
+                opponentRollsCounterRef.current = newOppRollsCounter;
+                opponentDicesRef.current = data['dices'];
                 setOpponentDices(data['dices']);
+                setDisplayOpponentDeck(true);
+            } else if (!data['displayOpponentDeck']) {
+                setDisplayOpponentDeck(false);
             }
         });
 
@@ -192,7 +225,7 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                     {/* Zone des dés (droite) */}
                     <View style={styles.rightSection}>
                         <View style={styles.topIndicatorContainer}>
-                            <OpponentDeck opponentDices={opponentDices} />
+                            <OpponentDeck displayOpponentDeck={displayOpponentDeck} />
                         </View>
                         <View style={styles.plateauContainer}>
                             <ImageBackground 
@@ -201,9 +234,9 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                                 resizeMode="contain"
                             >
                                 <DiceRollingArea 
-                                    dices={playerDices} 
-                                    isRolling={isDiceRolling} 
-                                    onDicePress={handleDiceLock}
+                                    dices={displayOpponentDeck ? opponentDices : playerDices} 
+                                    isRolling={displayOpponentDeck ? isOpponentRolling : isDiceRolling} 
+                                    onDicePress={displayOpponentDeck ? null : handleDiceLock}
                                 />
                             </ImageBackground>
                         </View>

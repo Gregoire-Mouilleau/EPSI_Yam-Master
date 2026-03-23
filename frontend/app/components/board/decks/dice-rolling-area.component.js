@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, StyleSheet, Animated, Dimensions, ImageBackground, TouchableOpacity } from "react-native";
+import { View, StyleSheet, Animated, Easing, TouchableOpacity } from "react-native";
 
 const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
   const [diceAnims] = useState(() => 
@@ -8,88 +8,236 @@ const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
       y: new Animated.Value(0),
       rotate: new Animated.Value(0),
       scale: new Animated.Value(1),
+      opacity: new Animated.Value(1),
     }))
   );
 
+  const [dicePositions, setDicePositions] = useState(
+    Array(5).fill(null).map(() => ({ x: 0, y: 0 }))
+  );
+
+  // Positions fixes en ligne pour affichage clair des dés au centre
+  const getFinalPosition = (index) => {
+    // Disposition en ligne horizontale au centre de l'écran
+    // Espacement de 80px entre chaque dé pour qu'ils soient bien visibles
+    const spacing = 80;
+    const startX = -160; // Commence à gauche pour centrer les 5 dés
+    
+    return {
+      x: startX + (index * spacing),
+      y: 0 // Centré verticalement
+    };
+  };
+
+  // Simulation physique réaliste - lancer chaotique de dés
+  const throwDice = (anim, index) => {
+    // Position de départ aléatoire (lancé depuis le haut et les côtés)
+    const startAngle = Math.random() * Math.PI * 2;
+    const startDistance = 180 + Math.random() * 50;
+    const startX = Math.cos(startAngle) * startDistance;
+    const startY = Math.sin(startAngle) * startDistance - 120;
+    
+    // Position finale fixe en ligne pour visibilité maximale
+    const finalPos = getFinalPosition(index);
+    const constrainedX = finalPos.x;
+    const constrainedY = finalPos.y;
+    
+    // Trajectoire chaotique avec plusieurs points intermédiaires
+    const bounce1X = constrainedX + (Math.random() - 0.5) * 120;
+    const bounce1Y = constrainedY + (Math.random() - 0.5) * 80;
+    const bounce2X = constrainedX + (Math.random() - 0.5) * 60;
+    const bounce2Y = constrainedY + (Math.random() - 0.5) * 40;
+    
+    // Rotations TRÈS rapides (dés qui roulent beaucoup)
+    const totalSpins = Math.floor(Math.random() * 15) + 10; // 10-25 rotations
+    
+    // Réinitialiser
+    anim.x.setValue(startX);
+    anim.y.setValue(startY);
+    anim.rotate.setValue(Math.random() * 360);
+    anim.scale.setValue(0.3);
+    anim.opacity.setValue(0.5);
+
+    // Animation chaotique avec trajectoire imprévisible
+    Animated.parallel([
+      // Trajectoire X - zigzag chaotique
+      Animated.sequence([
+        // Phase 1 : Arrivée chaotique
+        Animated.timing(anim.x, {
+          toValue: bounce1X,
+          duration: 400 + Math.random() * 200,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        // Phase 2 : Premier rebond latéral
+        Animated.timing(anim.x, {
+          toValue: bounce2X,
+          duration: 300 + Math.random() * 150,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        // Phase 3 : Roulement vers position finale
+        Animated.spring(anim.x, {
+          toValue: constrainedX + (Math.random() - 0.5) * 20,
+          friction: 4 + Math.random() * 3,
+          tension: 30 + Math.random() * 20,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      // Trajectoire Y - multiples rebonds chaotiques
+      Animated.sequence([
+        // Chute initiale avec impact
+        Animated.timing(anim.y, {
+          toValue: bounce1Y + 40,
+          duration: 450 + Math.random() * 150,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        // Premier gros rebond
+        Animated.timing(anim.y, {
+          toValue: constrainedY - 60,
+          duration: 280,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim.y, {
+          toValue: constrainedY + 25,
+          duration: 280,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        // Deuxième rebond moyen
+        Animated.timing(anim.y, {
+          toValue: constrainedY - 35,
+          duration: 200,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim.y, {
+          toValue: constrainedY + 12,
+          duration: 200,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        // Troisième petit rebond
+        Animated.timing(anim.y, {
+          toValue: constrainedY - 18,
+          duration: 140,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim.y, {
+          toValue: constrainedY + 6,
+          duration: 140,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        // Micro rebonds finaux (roulement)
+        Animated.timing(anim.y, {
+          toValue: constrainedY - 8,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim.y, {
+          toValue: constrainedY + 3,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+        // Stabilisation
+        Animated.spring(anim.y, {
+          toValue: constrainedY,
+          friction: 9,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      // Rotation continue et rapide (dé qui roule)
+      Animated.sequence([
+        Animated.timing(anim.rotate, {
+          toValue: totalSpins * 360,
+          duration: 1800,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        // Petites rotations finales (ajustement)
+        Animated.timing(anim.rotate, {
+          toValue: (totalSpins + 0.5 + Math.random() * 0.5) * 360,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      // Scale - effet 3D de profondeur
+      Animated.sequence([
+        // Apparition
+        Animated.timing(anim.scale, {
+          toValue: 1.6,
+          duration: 250,
+          easing: Easing.out(Easing.back(3)),
+          useNativeDriver: true,
+        }),
+        // Pendant le vol (variation pour effet 3D)
+        Animated.timing(anim.scale, {
+          toValue: 1.3,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim.scale, {
+          toValue: 1.5,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim.scale, {
+          toValue: 1.2,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        // Stabilisation
+        Animated.spring(anim.scale, {
+          toValue: 1,
+          friction: 5,
+          tension: 35,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      // Opacité - effet d'apparition et profondeur
+      Animated.sequence([
+        Animated.timing(anim.opacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        // Variation pendant le vol pour simuler rotation 3D
+        Animated.timing(anim.opacity, {
+          toValue: 0.9,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim.opacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  };
+
   useEffect(() => {
     if (isRolling && dices.length > 0) {
-      // Animation de lancer pour chaque dé
+      // Lancer tous les dés non verrouillés simultanément
       dices.forEach((dice, index) => {
-        if (!dice.locked && dice.value) {
-          const anim = diceAnims[index];
-          
-          // Position de départ aléatoire en haut
-          const startX = Math.random() * 150 - 75;
-          const startY = -150;
-          
-          // Positions finales en grille pour 5 dés
-          const positions = [
-            { x: -80, y: -30 },
-            { x: 0, y: -30 },
-            { x: 80, y: -30 },
-            { x: -40, y: 40 },
-            { x: 40, y: 40 },
-          ];
-          
-          const endPos = positions[index] || { x: 0, y: 0 };
-          const endX = endPos.x + (Math.random() * 20 - 10);
-          const endY = endPos.y + (Math.random() * 20 - 10);
-          
-          // Rotation aléatoire
-          const rotations = Math.floor(Math.random() * 4) + 3;
-
-          anim.x.setValue(startX);
-          anim.y.setValue(startY);
-          anim.rotate.setValue(0);
-          anim.scale.setValue(1.5);
-
-          Animated.parallel([
-            Animated.spring(anim.x, {
-              toValue: endX,
-              friction: 5,
-              tension: 25,
-              useNativeDriver: true,
-            }),
-            Animated.sequence([
-              Animated.timing(anim.y, {
-                toValue: endY - 40,
-                duration: 500,
-                useNativeDriver: true,
-              }),
-              Animated.spring(anim.y, {
-                toValue: endY,
-                friction: 4,
-                tension: 50,
-                useNativeDriver: true,
-              }),
-            ]),
-            Animated.timing(anim.rotate, {
-              toValue: rotations,
-              duration: 700,
-              useNativeDriver: true,
-            }),
-            Animated.timing(anim.scale, {
-              toValue: 1,
-              duration: 700,
-              useNativeDriver: true,
-            }),
-          ]).start();
+        if (dice && !dice.locked) {
+          // Petit délai aléatoire pour effet naturel (0-200ms)
+          setTimeout(() => {
+            throwDice(diceAnims[index], index);
+          }, Math.random() * 200);
         }
       });
     }
-  }, [isRolling, dices]);
-
-  // Positions statiques des dés (en grille)
-  const getDicePosition = (index) => {
-    const positions = [
-      { x: -80, y: -30 },
-      { x: 0, y: -30 },
-      { x: 80, y: -30 },
-      { x: -40, y: 40 },
-      { x: 40, y: 40 },
-    ];
-    return positions[index] || { x: 0, y: 0 };
-  };
+  }, [isRolling]);
 
   const renderDots = (value) => {
     if (!value || value === '') return null;
@@ -117,34 +265,27 @@ const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
       {Array(5).fill(null).map((_, index) => {
         const dice = dices[index] || { id: index, value: '', locked: true };
         const anim = diceAnims[index];
-        const staticPos = getDicePosition(index);
         
+        // Interpolation de la rotation
         const spin = anim.rotate.interpolate({
-          inputRange: [0, 1],
+          inputRange: [0, 360],
           outputRange: ['0deg', '360deg']
         });
 
-        // Si on est en train de lancer ET que ce dé n'est pas locked, utiliser l'animation
-        // Sinon, utiliser les positions statiques
-        const shouldAnimate = isRolling && !dice.locked && dice.value;
-
+        // Les dés sont positionnés en ligne au centre après l'animation
         return (
           <Animated.View
             key={dice.id || index}
             style={[
               styles.diceContainer,
-              shouldAnimate ? {
+              {
                 transform: [
                   { translateX: anim.x },
                   { translateY: anim.y },
                   { rotate: spin },
                   { scale: anim.scale },
-                ]
-              } : {
-                transform: [
-                  { translateX: staticPos.x },
-                  { translateY: staticPos.y },
-                ]
+                ],
+                opacity: anim.opacity,
               }
             ]}
           >
@@ -155,7 +296,7 @@ const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
                 !dice.value && styles.emptyDice
               ]}
               onPress={() => onDicePress && onDicePress(index)}
-              disabled={!dice.value}
+              disabled={!dice.value || !onDicePress}
             >
               {renderDots(dice.value)}
             </TouchableOpacity>
@@ -177,67 +318,89 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   dice: {
-    width: 60,
-    height: 60,
+    width: 65,
+    height: 65,
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#2C2C2C",
+    borderWidth: 2,
+    borderColor: "#1A1A1A",
+    // Effet 3D TRÈS prononcé avec gradients exagérés
+    borderTopWidth: 1,
+    borderTopColor: "#FFFFFF",
+    borderLeftWidth: 1,
+    borderLeftColor: "#FAFAFA",
+    borderRightWidth: 4,
+    borderRightColor: "#909090",
+    borderBottomWidth: 4,
+    borderBottomColor: "#707070",
+    // Ombres multiples TRÈS profondes pour effet 3D
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 8,
+    shadowOffset: { width: 3, height: 12 },
+    shadowOpacity: 0.8,
+    shadowRadius: 16,
+    elevation: 25,
   },
   lockedDice: {
-    backgroundColor: "#CCCCCC",
-    borderColor: "#666666",
+    backgroundColor: "#B0B0B0",
+    borderTopColor: "#CCCCCC",
+    borderLeftColor: "#B8B8B8",
+    borderRightColor: "#707070",
+    borderBottomColor: "#505050",
   },
   emptyDice: {
-    backgroundColor: "#F5F5F5",
-    borderColor: "#CCCCCC",
-    opacity: 0.5,
+    backgroundColor: "#F8F8F8",
+    borderTopColor: "#FFFFFF",
+    borderLeftColor: "#F5F5F5",
+    borderRightColor: "#D0D0D0",
+    borderBottomColor: "#C0C0C0",
+    opacity: 0.35,
   },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#2C2C2C",
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#0A0A0A",
     position: 'absolute',
+    // Ombre pour les points (effet gravé)
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.6,
+    shadowRadius: 3,
+    elevation: 5,
   },
   'top-left': {
-    top: 10,
-    left: 10,
+    top: 11,
+    left: 11,
   },
   'top-right': {
-    top: 10,
-    right: 10,
+    top: 11,
+    right: 11,
   },
   'center': {
     top: '50%',
     left: '50%',
-    marginTop: -5,
-    marginLeft: -5,
+    marginTop: -6,
+    marginLeft: -6,
   },
   'middle-left': {
     top: '50%',
-    left: 10,
-    marginTop: -5,
+    left: 11,
+    marginTop: -6,
   },
   'middle-right': {
     top: '50%',
-    right: 10,
-    marginTop: -5,
+    right: 11,
+    marginTop: -6,
   },
   'bottom-left': {
-    bottom: 10,
-    left: 10,
+    bottom: 11,
+    left: 11,
   },
   'bottom-right': {
-    bottom: 10,
-    right: 10,
+    bottom: 11,
+    right: 11,
   },
 });
 

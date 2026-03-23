@@ -263,7 +263,6 @@ io.on('connection', socket => {
       // Gestion des dés 
       games[gameIndex].gameState.deck.dices = GameService.dices.roll(games[gameIndex].gameState.deck.dices);
       games[gameIndex].gameState.deck.rollsCounter++;
-      games[gameIndex].gameState.deck.dices = GameService.dices.lockEveryDice(games[gameIndex].gameState.deck.dices);
 
       // Gestion des combinaisons
       const dices = games[gameIndex].gameState.deck.dices;
@@ -280,9 +279,18 @@ io.on('connection', socket => {
         games[gameIndex].gameState.timer = 4;
       }
 
+      // Envoyer d'abord l'état avec les dés non verrouillés pour l'animation
       updateClientsViewTimers(games[gameIndex]);
       updateClientsViewDecks(games[gameIndex]);
       updateClientsViewChoices(games[gameIndex]);
+
+      // Verrouiller tous les dés après 2.3 secondes (temps de l'animation)
+      setTimeout(() => {
+        if (games[gameIndex]) {
+          games[gameIndex].gameState.deck.dices = GameService.dices.lockEveryDice(games[gameIndex].gameState.deck.dices);
+          updateClientsViewDecks(games[gameIndex]);
+        }
+      }, 2300);
     }
   });
 
