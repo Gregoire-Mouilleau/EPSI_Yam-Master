@@ -1,35 +1,30 @@
-import React, { useContext } from "react";
-import { StyleSheet, View, Button, Text } from "react-native";
+import React, { useContext, useState } from "react";
+import { StyleSheet, View, Text } from "react-native";
 import { SocketContext } from '../contexts/socket.context';
+import VsBotGameController from '../controllers/vs-bot-game.controller';
 
 export default function VsBotGameScreen({ navigation }) {
 
     const socket = useContext(SocketContext);
+    const [isInGame, setIsInGame] = useState(false);
 
     return (
         <View style={styles.container}>
             {!socket ? (
-                <View>
+                <View style={styles.errorContainer}>
                     <Text style={styles.paragraph}>
-                        No connection with server...
+                        Pas de connexion avec le serveur...
                     </Text>
                     <Text style={styles.footnote}>
-                        Restart the app and wait for the server to be back again.
+                        Redémarrez l'application et attendez que le serveur soit de nouveau en ligne.
                     </Text>
                 </View>
             ) : (
-                <View>
-                    <Text style={styles.paragraph}>
-                        VsBot Game Interface
-                    </Text>
-                    <Text style={styles.footnote}>
-                        My socket id is: {socket.id}
-                    </Text>
-                    <Button
-                        title="Revenir au menu"
-                        onPress={() => navigation.navigate('HomeScreen')}
-                    />
-                </View>
+                <VsBotGameController 
+                    navigation={navigation} 
+                    language="FR" 
+                    onGameStateChange={setIsInGame}
+                />
             )}
         </View>
     );
@@ -38,13 +33,17 @@ export default function VsBotGameScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#fff",
+        backgroundColor: "#2C1810",
+    },
+    errorContainer: {
+        flex: 1,
         alignItems: "center",
         justifyContent: "center",
     },
     paragraph: {
         fontSize: 16,
         marginBottom: 10,
+        color: '#FFD700',
     },
     footnote: {
         fontSize: 14,

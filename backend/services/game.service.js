@@ -130,10 +130,10 @@ const GameService = {
                     idPlayer:
                         (playerKey === 'player:1')
                             ? game.player1Socket.id
-                            : game.player2Socket.id,
+                            : (game.player2Socket ? game.player2Socket.id : 'bot'),
                     idOpponent:
                         (playerKey === 'player:1')
-                            ? game.player2Socket.id
+                            ? (game.player2Socket ? game.player2Socket.id : 'bot')
                             : game.player1Socket.id,
                     pseudoPlayer:
                         (playerKey === 'player:1')
