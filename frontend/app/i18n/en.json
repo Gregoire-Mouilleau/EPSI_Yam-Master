@@ -54,5 +54,14 @@
   "resumeState": "🎮 State:",
   "resumeQuestion": "Do you want to resume this game?",
   "resumeButton": "▶️ Resume",
-  "resumeNewGame": "🆕 New game"
+  "resumeNewGame": "🆕 New game",
+  "disconnectOpponentTitle": "Opponent disconnected",
+  "disconnectOpponentMessage": "Your opponent has disconnected.\nWaiting for reconnection...",
+  "disconnectTimeRemaining": "time remaining",
+  "disconnectReconnected": "Reconnection successful!",
+  "disconnectReconnectedMessage": "Your opponent has reconnected.\nThe game resumes!",
+  "disconnectForfeitTitle": "Victory by forfeit!",
+  "disconnectForfeitMessage": "Your opponent did not reconnect.\nYou win the game!",
+  "choicesHeader": "⚡ AVAILABLE COMBINATIONS",
+  "choicesNone": "No combination available"
 }

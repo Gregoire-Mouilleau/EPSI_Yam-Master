@@ -90,7 +90,7 @@ export default function GameEndModal({
                         )}
                         
                         <Text style={styles.winnerText}>
-                            {isDraw ? 'Match nul !' : `${displayedPseudo} gagne !`}
+                            {isDraw ? t('gameEndDrawText') : `${displayedPseudo} ${t('gameEndWins')}`}
                         </Text>
                         
                         <Text style={styles.reasonText}>{getReasonText()}</Text>
@@ -99,14 +99,14 @@ export default function GameEndModal({
                         <View style={styles.scoresContainer}>
                             <View style={styles.scoreBox}>
                                 <Text style={styles.scoreLabel}>🟢 {pseudoPlayer}</Text>
-                                <Text style={styles.scoreValue}>{playerScore} {playerScore > 1 ? 'lignes' : 'ligne'}</Text>
+                                <Text style={styles.scoreValue}>{playerScore} {playerScore > 1 ? t('gameEndLines') : t('gameEndLine')}</Text>
                             </View>
                             
-                            <Text style={styles.vs}>VS</Text>
+                            <Text style={styles.vs}>{t('gameEndVs')}</Text>
                             
                             <View style={styles.scoreBox}>
                                 <Text style={styles.scoreLabel}>🔴 {pseudoOpponent}</Text>
-                                <Text style={styles.scoreValue}>{opponentScore} {opponentScore > 1 ? 'lignes' : 'ligne'}</Text>
+                                <Text style={styles.scoreValue}>{opponentScore} {opponentScore > 1 ? t('gameEndLines') : t('gameEndLine')}</Text>
                             </View>
                         </View>
                     </View>
@@ -117,14 +117,14 @@ export default function GameEndModal({
                             style={[styles.button, styles.rematchButton]} 
                             onPress={onRematch}
                         >
-                            <Text style={styles.buttonText}>🎮 Rejouer</Text>
+                            <Text style={styles.buttonText}>{t('gameEndRematch')}</Text>
                         </TouchableOpacity>
                         
                         <TouchableOpacity 
                             style={[styles.button, styles.menuButton]} 
                             onPress={onReturnToMenu}
                         >
-                            <Text style={styles.buttonText}>🏠 Menu</Text>
+                            <Text style={styles.buttonText}>{t('gameEndMenu')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

@@ -54,5 +54,14 @@
   "resumeState": "🎮 État :",
   "resumeQuestion": "Voulez-vous reprendre cette partie ?",
   "resumeButton": "▶️ Reprendre",
-  "resumeNewGame": "🆕 Nouvelle partie"
+  "resumeNewGame": "🆕 Nouvelle partie",
+  "disconnectOpponentTitle": "Adversaire déconnecté",
+  "disconnectOpponentMessage": "Votre adversaire s'est déconnecté.\nEn attente de reconnexion...",
+  "disconnectTimeRemaining": "temps restant",
+  "disconnectReconnected": "Reconnexion réussie !",
+  "disconnectReconnectedMessage": "Votre adversaire s'est reconnecté.\nLa partie reprend !",
+  "disconnectForfeitTitle": "Victoire par forfait !",
+  "disconnectForfeitMessage": "Votre adversaire ne s'est pas reconnecté.\nVous gagnez la partie !",
+  "choicesHeader": "⚡ COMBINAISONS DISPONIBLES",
+  "choicesNone": "Aucune combinaison disponible"
 }

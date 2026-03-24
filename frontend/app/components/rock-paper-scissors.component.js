@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated } from 'react-native';
+import { useLanguage } from '../contexts/language.context';
 
 export default function RockPaperScissors({ visible, playerPseudo, opponentPseudo, opponentChoice, onChoice }) {
+    const { t } = useLanguage();
     const [playerChoice, setPlayerChoice] = useState(null);
     const [showResult, setShowResult] = useState(false);
     
@@ -16,9 +18,9 @@ export default function RockPaperScissors({ visible, playerPseudo, opponentPseud
     const pulseAnim = new Animated.Value(1);
 
     const choices = [
-        { id: 'rock', name: 'Pierre', image: require('../../assets/pierre.png') },
-        { id: 'paper', name: 'Papier', image: require('../../assets/papier.png') },
-        { id: 'scissors', name: 'Ciseaux', image: require('../../assets/ciseaux.png') },
+        { id: 'rock', name: t('rpsRock'), image: require('../../assets/pierre.png') },
+        { id: 'paper', name: t('rpsPaper'), image: require('../../assets/papier.png') },
+        { id: 'scissors', name: t('rpsScissors'), image: require('../../assets/ciseaux.png') },
     ];
     
     // Animation d'entrée du composant
@@ -105,8 +107,8 @@ export default function RockPaperScissors({ visible, playerPseudo, opponentPseud
                     }
                 ]}
             >
-                <Text style={styles.title}>🎮 Pierre, Papier, Ciseaux ! 🎮</Text>
-                <Text style={styles.subtitle}>Choisis ton arme pour décider qui commence !</Text>
+                <Text style={styles.title}>{t('rpsTitle')}</Text>
+                <Text style={styles.subtitle}>{t('rpsSubtitle')}</Text>
                 
                 {!showResult && (
                     <>
@@ -143,7 +145,7 @@ export default function RockPaperScissors({ visible, playerPseudo, opponentPseud
                         
                         {playerChoice && !opponentChoice && (
                             <View style={styles.waitingContainer}>
-                                <Text style={styles.waitingText}>⏳ En attente de {opponentPseudo}...</Text>
+                                <Text style={styles.waitingText}>{t('rpsWaiting')} {opponentPseudo}...</Text>
                             </View>
                         )}
                     </>
@@ -163,7 +165,7 @@ export default function RockPaperScissors({ visible, playerPseudo, opponentPseud
                                 </Text>
                             </View>
                             
-                            <Text style={styles.vsText}>VS</Text>
+                            <Text style={styles.vsText}>{t('rpsVs')}</Text>
                             
                             <View style={styles.resultChoice}>
                                 <Text style={styles.resultPlayerName}>{opponentPseudo}</Text>

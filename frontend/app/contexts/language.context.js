@@ -1,9 +1,16 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import fr from '../i18n/fr.json';
+import en from '../i18n/en.json';
 
 export const LanguageContext = createContext();
 
 const LANGUAGE_STORAGE_KEY = '@app_language';
+
+const DICTIONARIES = {
+  FR: fr,
+  EN: en,
+};
 
 export const LanguageProvider = ({ children }) => {
   const [language, setLanguageState] = useState('FR'); // Default to French
@@ -42,9 +49,24 @@ export const LanguageProvider = ({ children }) => {
     setLanguage(newLanguage);
   };
 
+  // Translation function
+  const t = (key) => {
+    const dict = DICTIONARIES[language] || DICTIONARIES.FR;
+    return dict[key] || key;
+  };
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, isLoading }}>
+    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, isLoading, t }}>
       {children}
     </LanguageContext.Provider>
   );
+};
+
+// Custom hook to use language context
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  if (!context) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
 };

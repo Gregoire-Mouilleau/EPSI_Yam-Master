@@ -1,10 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { SocketContext } from '../../../contexts/socket.context';
+import { useLanguage } from '../../../contexts/language.context';
 
 const Choices = () => {
 
     const socket = useContext(SocketContext);
+    const { t } = useLanguage();
 
     const [displayChoices, setDisplayChoices] = useState(false);
     const [canMakeChoice, setCanMakeChoice] = useState(false);
@@ -38,7 +40,7 @@ const Choices = () => {
     return (
         <View style={styles.mainContainer}>
             <View style={styles.headerContainer}>
-                <Text style={styles.headerText}>⚡ COMBINAISONS DISPONIBLES</Text>
+                <Text style={styles.headerText}>{t('choicesHeader')}</Text>
             </View>
             
             <View style={styles.choicesContainer}>
@@ -66,7 +68,7 @@ const Choices = () => {
                     ))
                 ) : displayChoices ? (
                     <View style={styles.noChoicesContainer}>
-                        <Text style={styles.noChoicesText}>Aucune combinaison disponible</Text>
+                        <Text style={styles.noChoicesText}>{t('choicesNone')}</Text>
                     </View>
                 ) : null}
             </View>

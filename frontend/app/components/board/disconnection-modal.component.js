@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { useLanguage } from '../../contexts/language.context';
 
 export default function DisconnectionModal({ 
     visible, 
@@ -7,6 +8,7 @@ export default function DisconnectionModal({
     waitTime = 180,
     message
 }) {
+    const { t } = useLanguage();
     const [remainingTime, setRemainingTime] = useState(waitTime);
     
     useEffect(() => {
@@ -35,16 +37,15 @@ export default function DisconnectionModal({
             return (
                 <>
                     <Text style={styles.icon}>⏳</Text>
-                    <Text style={styles.title}>Adversaire déconnecté</Text>
+                    <Text style={styles.title}>{t('disconnectOpponentTitle')}</Text>
                     <Text style={styles.message}>
-                        Votre adversaire s'est déconnecté.{'\n'}
-                        En attente de reconnexion...
+                        {t('disconnectOpponentMessage')}
                     </Text>
                     <View style={styles.timerContainer}>
                         <Text style={styles.timer}>
                             {minutes}:{seconds.toString().padStart(2, '0')}
                         </Text>
-                        <Text style={styles.timerLabel}>temps restant</Text>
+                        <Text style={styles.timerLabel}>{t('disconnectTimeRemaining')}</Text>
                     </View>
                     <ActivityIndicator size="large" color="#FFD700" style={styles.spinner} />
                 </>
@@ -55,9 +56,9 @@ export default function DisconnectionModal({
             return (
                 <>
                     <Text style={styles.icon}>✅</Text>
-                    <Text style={styles.title}>Reconnexion réussie !</Text>
+                    <Text style={styles.title}>{t('disconnectReconnected')}</Text>
                     <Text style={styles.message}>
-                        {message || 'Votre adversaire s\'est reconnecté.\nLa partie reprend !'}
+                        {message || t('disconnectReconnectedMessage')}
                     </Text>
                 </>
             );
@@ -67,9 +68,9 @@ export default function DisconnectionModal({
             return (
                 <>
                     <Text style={styles.icon}>🏆</Text>
-                    <Text style={styles.title}>Victoire par forfait !</Text>
+                    <Text style={styles.title}>{t('disconnectForfeitTitle')}</Text>
                     <Text style={styles.message}>
-                        {message || 'Votre adversaire ne s\'est pas reconnecté.\nVous gagnez la partie !'}
+                        {message || t('disconnectForfeitMessage')}
                     </Text>
                 </>
             );

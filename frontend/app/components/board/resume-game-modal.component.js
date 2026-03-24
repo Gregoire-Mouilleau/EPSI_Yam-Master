@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useLanguage } from '../../contexts/language.context';
 
 export default function ResumeGameModal({ 
     visible, 
@@ -9,47 +10,49 @@ export default function ResumeGameModal({
     onNewGame,
     errorMessage
 }) {
+    const { t } = useLanguage();
+    
     const getContent = () => {
         if (errorMessage) {
             return (
                 <>
                     <Text style={styles.icon}>❌</Text>
-                    <Text style={styles.title}>Erreur</Text>
+                    <Text style={styles.title}>{t('resumeError')}</Text>
                     <Text style={styles.message}>{errorMessage}</Text>
                     <TouchableOpacity
                         style={styles.button}
                         onPress={onNewGame}
                         activeOpacity={0.8}
                     >
-                        <Text style={styles.buttonText}>OK</Text>
+                        <Text style={styles.buttonText}>{t('resumeOk')}</Text>
                     </TouchableOpacity>
                 </>
             );
         }
         
         const savedDate = new Date(savedAt);
-        const currentTurnText = currentTurn === 'player:1' ? 'Votre tour' : 'Tour du Bot';
+        const currentTurnText = currentTurn === 'player:1' ? t('resumeYourTurn') : t('resumeBotTurn');
         
         return (
             <>
                 <Text style={styles.icon}>💾</Text>
-                <Text style={styles.title}>Partie sauvegardée trouvée</Text>
+                <Text style={styles.title}>{t('resumeTitle')}</Text>
                 <Text style={styles.message}>
-                    Une partie en cours a été détectée !
+                    {t('resumeMessage')}
                 </Text>
                 
                 <View style={styles.infoContainer}>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>📅 Sauvegardée le :</Text>
+                        <Text style={styles.infoLabel}>{t('resumeSavedAt')}</Text>
                         <Text style={styles.infoValue}>{savedDate.toLocaleString('fr-FR')}</Text>
                     </View>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>🎮 État :</Text>
+                        <Text style={styles.infoLabel}>{t('resumeState')}</Text>
                         <Text style={styles.infoValue}>{currentTurnText}</Text>
                     </View>
                 </View>
                 
-                <Text style={styles.question}>Voulez-vous reprendre cette partie ?</Text>
+                <Text style={styles.question}>{t('resumeQuestion')}</Text>
                 
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity
@@ -57,7 +60,7 @@ export default function ResumeGameModal({
                         onPress={onResume}
                         activeOpacity={0.8}
                     >
-                        <Text style={styles.buttonText}>▶️ Reprendre</Text>
+                        <Text style={styles.buttonText}>{t('resumeButton')}</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity
@@ -65,7 +68,7 @@ export default function ResumeGameModal({
                         onPress={onNewGame}
                         activeOpacity={0.8}
                     >
-                        <Text style={styles.buttonText}>🆕 Nouvelle partie</Text>
+                        <Text style={styles.buttonText}>{t('resumeNewGame')}</Text>
                     </TouchableOpacity>
                 </View>
             </>
