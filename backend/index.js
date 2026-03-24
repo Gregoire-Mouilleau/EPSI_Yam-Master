@@ -74,6 +74,20 @@ const updateClientsViewGrid = (game) => {
   }, 200);
 };
 
+const determineRPSWinner = (choice1, choice2) => {
+  if (choice1 === choice2) return 'draw';
+  
+  if (
+    (choice1 === 'rock' && choice2 === 'scissors') ||
+    (choice1 === 'paper' && choice2 === 'rock') ||
+    (choice1 === 'scissors' && choice2 === 'paper')
+  ) {
+    return 'player1';
+  }
+  
+  return 'player2';
+};
+
 const newPlayerInQueue = (socket, pseudo, avatarKey) => {
 
   removePlayerFromQueue(socket);
@@ -101,21 +115,26 @@ const createGame = (player1Socket, player1Pseudo, player1AvatarKey, player2Socke
   newGame['player2Pseudo'] = player2Pseudo;
   newGame['player2AvatarKey'] = player2AvatarKey;
   newGame['isVsBot'] = false;
+  
+  // Pierre-papier-ciseaux pour déterminer qui commence
+  newGame['rpsPlayer1Choice'] = null;
+  newGame['rpsPlayer2Choice'] = null;
+  newGame['rpsStarted'] = false;
 
   games.push(newGame);
 
   const gameIndex = GameService.utils.findGameIndexById(games, newGame.idGame);
-
-  games[gameIndex].player1Socket.emit('game.start', GameService.send.forPlayer.viewGameState('player:1', games[gameIndex]));
-  games[gameIndex].player2Socket.emit('game.start', GameService.send.forPlayer.viewGameState('player:2', games[gameIndex]));
-
-  updateClientsViewTimers(games[gameIndex]);
-  updateClientsViewDecks(games[gameIndex]);
-  updateClientsViewChoices(games[gameIndex]);
-  updateClientsViewGrid(games[gameIndex]);
-
-  // Démarrer le timer du jeu
-  startOnlineGameTimer(gameIndex);
+  
+  // Envoyer l'événement pour démarrer le pierre-papier-ciseaux
+  games[gameIndex].rpsStarted = true;
+  games[gameIndex].player1Socket.emit('rps.start', {
+    playerPseudo: player1Pseudo,
+    opponentPseudo: player2Pseudo
+  });
+  games[gameIndex].player2Socket.emit('rps.start', {
+    playerPseudo: player2Pseudo,
+    opponentPseudo: player1Pseudo
+  });
 
   // Gérer les déconnexions
   player1Socket.on('disconnect', () => {
@@ -976,6 +995,92 @@ io.on('connection', socket => {
   socket.on('queue.leave', () => {
     removePlayerFromQueue(socket);
     socket.emit('queue.left', { success: true, message: 'You left the queue' });
+  });
+  
+  socket.on('rps.choice', (data) => {
+    const choice = data?.choice; // 'rock', 'paper', 'scissors'
+    
+    // Trouver la partie en cours pour ce joueur
+    const gameIndex = games.findIndex(game => 
+      game.rpsStarted && 
+      ((game.player1Socket && game.player1Socket.id === socket.id) || 
+       (game.player2Socket && game.player2Socket.id === socket.id))
+    );
+    
+    if (gameIndex === -1) {
+      console.log('[RPS] Partie non trouvée pour le socket', socket.id);
+      return;
+    }
+    
+    const game = games[gameIndex];
+    const isPlayer1 = game.player1Socket && game.player1Socket.id === socket.id;
+    
+    // Enregistrer le choix
+    if (isPlayer1) {
+      game.rpsPlayer1Choice = choice;
+      console.log(`[RPS] Player1 (${game.player1Pseudo}) a choisi: ${choice}`);
+    } else {
+      game.rpsPlayer2Choice = choice;
+      console.log(`[RPS] Player2 (${game.player2Pseudo}) a choisi: ${choice}`);
+    }
+    
+    // Informer l'adversaire que le joueur a fait son choix
+    const opponentSocket = isPlayer1 ? game.player2Socket : game.player1Socket;
+    if (opponentSocket) {
+      opponentSocket.emit('rps.opponent.ready');
+    }
+    
+    // Si les deux joueurs ont choisi, déterminer le gagnant
+    if (game.rpsPlayer1Choice && game.rpsPlayer2Choice) {
+      const result = determineRPSWinner(game.rpsPlayer1Choice, game.rpsPlayer2Choice);
+      
+      console.log(`[RPS] Résultat: ${game.player1Pseudo} (${game.rpsPlayer1Choice}) vs ${game.player2Pseudo} (${game.rpsPlayer2Choice}) = ${result}`);
+      
+      // Envoyer le résultat aux deux joueurs
+      game.player1Socket.emit('rps.result', {
+        playerChoice: game.rpsPlayer1Choice,
+        opponentChoice: game.rpsPlayer2Choice,
+        result: result
+      });
+      
+      game.player2Socket.emit('rps.result', {
+        playerChoice: game.rpsPlayer2Choice,
+        opponentChoice: game.rpsPlayer1Choice,
+        result: result === 'draw' ? 'draw' : (result === 'player1' ? 'opponent' : 'player')
+      });
+      
+      if (result === 'draw') {
+        // Égalité : recommencer
+        console.log('[RPS] Égalité ! On recommence...');
+        setTimeout(() => {
+          game.rpsPlayer1Choice = null;
+          game.rpsPlayer2Choice = null;
+          
+          game.player1Socket.emit('rps.restart');
+          game.player2Socket.emit('rps.restart');
+        }, 2500);
+      } else {
+        // Quelqu'un a gagné : définir qui commence
+        game.gameState.currentTurn = result === 'player1' ? 'player:1' : 'player:2';
+        game.rpsStarted = false;
+        
+        console.log(`[RPS] ${result === 'player1' ? game.player1Pseudo : game.player2Pseudo} commence !`);
+        
+        // Démarrer la partie après 2.5 secondes
+        setTimeout(() => {
+          game.player1Socket.emit('game.start', GameService.send.forPlayer.viewGameState('player:1', games[gameIndex]));
+          game.player2Socket.emit('game.start', GameService.send.forPlayer.viewGameState('player:2', games[gameIndex]));
+
+          updateClientsViewTimers(games[gameIndex]);
+          updateClientsViewDecks(games[gameIndex]);
+          updateClientsViewChoices(games[gameIndex]);
+          updateClientsViewGrid(games[gameIndex]);
+
+          // Démarrer le timer du jeu
+          startOnlineGameTimer(gameIndex);
+        }, 2500);
+      }
+    }
   });
 
   socket.on('vsbot.start', (data) => {

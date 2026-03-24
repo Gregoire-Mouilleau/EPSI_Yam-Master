@@ -6,8 +6,8 @@
     "player2Pseudo": "🤖 Bot",
     "player2AvatarKey": "avatar_6",
     "gameState": {
-      "currentTurn": "player:1",
-      "timer": 3,
+      "currentTurn": "player:2",
+      "timer": 27,
       "player1Score": 0,
       "player2Score": 0,
       "grid": [
@@ -21,7 +21,7 @@
           {
             "viewContent": "3",
             "id": "brelan3",
-            "owner": null,
+            "owner": "player:2",
             "canBeChecked": false
           },
           {
@@ -111,7 +111,7 @@
           {
             "viewContent": "6",
             "id": "brelan6",
-            "owner": null,
+            "owner": "player:2",
             "canBeChecked": false
           },
           {
@@ -182,36 +182,36 @@
         "dices": [
           {
             "id": 1,
-            "value": "",
-            "locked": true
+            "value": "4",
+            "locked": false
           },
           {
             "id": 2,
-            "value": "",
-            "locked": true
+            "value": "2",
+            "locked": false
           },
           {
             "id": 3,
-            "value": "",
+            "value": "6",
             "locked": true
           },
           {
             "id": 4,
-            "value": "",
-            "locked": true
+            "value": "1",
+            "locked": false
           },
           {
             "id": 5,
-            "value": "",
+            "value": "6",
             "locked": true
           }
         ],
-        "rollsCounter": 1,
+        "rollsCounter": 3,
         "rollsMaximum": 3
       }
     },
     "isVsBot": true,
     "botDifficulty": "normal",
-    "savedAt": "2026-03-23T15:02:30.597Z"
+    "savedAt": "2026-03-24T07:14:55.123Z"
   }
 ]

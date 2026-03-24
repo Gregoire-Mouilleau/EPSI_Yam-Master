@@ -14,6 +14,7 @@ import Choices from '../components/board/choices/choices.component';
 import DiceRollingArea from '../components/board/decks/dice-rolling-area.component';
 import GameEndModal from '../components/board/game-end-modal.component';
 import DisconnectionModal from '../components/board/disconnection-modal.component';
+import RockPaperScissors from '../components/rock-paper-scissors.component';
 
 
 export default function OnlineGameController({ navigation, language = 'FR', onGameStateChange }) {
@@ -46,6 +47,12 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
     const [disconnectionModalVisible, setDisconnectionModalVisible] = useState(false);
     const [disconnectionStatus, setDisconnectionStatus] = useState('waiting'); // 'waiting', 'reconnected', 'forfeit'
     const [disconnectionWaitTime, setDisconnectionWaitTime] = useState(180);
+    
+    // États pour le pierre-papier-ciseaux
+    const [showRPS, setShowRPS] = useState(false);
+    const [rpsPlayerPseudo, setRpsPlayerPseudo] = useState('');
+    const [rpsOpponentPseudo, setRpsOpponentPseudo] = useState('');
+    const [rpsOpponentChoice, setRpsOpponentChoice] = useState(null);
     
     // Refs pour garder les valeurs des dés à jour dans le socket listener
     const playerDicesRef = React.useRef([]);
@@ -134,9 +141,31 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
         socket.on('queue.left', (data) => {
             console.log('[listen][queue.left]:', data);
         });
+        
+        socket.on('rps.start', (data) => {
+            console.log('[listen][rps.start]:', data);
+            setRpsPlayerPseudo(data.playerPseudo);
+            setRpsOpponentPseudo(data.opponentPseudo);
+            setShowRPS(true);
+        });
+        
+        socket.on('rps.opponent.ready', () => {
+            console.log('[listen][rps.opponent.ready]: Adversaire a fait son choix');
+        });
+        
+        socket.on('rps.result', (data) => {
+            console.log('[listen][rps.result]:', data);
+            setRpsOpponentChoice(data.opponentChoice);
+        });
+        
+        socket.on('rps.restart', () => {
+            console.log('[listen][rps.restart]: Égalité, on recommence');
+            setRpsOpponentChoice(null);
+        });
 
         socket.on('game.start', async (data) => {
             console.log('[listen][game.start]:', data);
+            setShowRPS(false); // Masquer le RPS quand la partie démarre
             setInQueue(data['inQueue']);
             setInGame(data['inGame']);
             setIdOpponent(data['idOpponent']);
@@ -304,6 +333,10 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
             socket.emit("queue.leave");
             socket.off('queue.added');
             socket.off('queue.left');
+            socket.off('rps.start');
+            socket.off('rps.opponent.ready');
+            socket.off('rps.result');
+            socket.off('rps.restart');
             socket.off('game.start');
             socket.off('opponent.disconnected');
             socket.off('opponent.disconnected.waiting');
@@ -318,6 +351,11 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
             }
         };
     }, [gameResetKey]);
+    
+    const handleRPSChoice = (choice) => {
+        console.log('[emit][rps.choice]:', choice);
+        socket.emit('rps.choice', { choice });
+    };
 
     const handleLeaveQueue = () => {
         console.log('[emit][queue.leave]:', socket.id);
@@ -473,6 +511,17 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                     
                     <Text style={styles.startingText}>{texts.queueStarting}</Text>
                 </View>
+            )}
+            
+            {/* Composant Pierre-Papier-Ciseaux */}
+            {showRPS && (
+                <RockPaperScissors
+                    visible={showRPS}
+                    playerPseudo={rpsPlayerPseudo}
+                    opponentPseudo={rpsOpponentPseudo}
+                    opponentChoice={rpsOpponentChoice}
+                    onChoice={handleRPSChoice}
+                />
             )}
         </View>
     );
