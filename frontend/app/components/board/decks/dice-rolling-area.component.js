@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet, Animated, Easing, TouchableOpacity } from "react-native";
+import { Audio } from 'expo-av';
 
 const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
+  const soundRef = useRef(null);
+  
   const [diceAnims] = useState(() => 
     Array(5).fill(null).map(() => ({
       x: new Animated.Value(0),
@@ -225,8 +228,69 @@ const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
     ]).start();
   };
 
+  // Charger le son au montage du composant
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadSound = async () => {
+      try {
+        // Décharger l'ancien son s'il existe
+        if (soundRef.current) {
+          await soundRef.current.unloadAsync();
+          soundRef.current = null;
+        }
+        
+        const { sound } = await Audio.Sound.createAsync(
+          require('../../../assets/dice_roll.mp3'),
+          { shouldPlay: false, volume: 0.5 }
+        );
+        
+        if (isMounted) {
+          soundRef.current = sound;
+          console.log('Son des dés chargé avec succès');
+        } else {
+          // Si le composant est démonté pendant le chargement, décharger le son
+          await sound.unloadAsync();
+        }
+      } catch (error) {
+        console.log('Erreur chargement son dés:', error);
+      }
+    };
+    
+    loadSound();
+    
+    // Cleanup: décharger le son quand le composant est démonté
+    return () => {
+      isMounted = false;
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
+    };
+  }, []);
+
+  // Jouer le son et lancer les animations quand isRolling devient true
   useEffect(() => {
     if (isRolling && dices.length > 0) {
+      // Jouer le son de dés
+      const playDiceSound = async () => {
+        if (soundRef.current) {
+          try {
+            const status = await soundRef.current.getStatusAsync();
+            
+            if (status.isLoaded) {
+              // Remettre le son au début et le jouer
+              await soundRef.current.setPositionAsync(0);
+              await soundRef.current.playAsync();
+            }
+          } catch (error) {
+            console.log('Erreur lecture son dés:', error);
+          }
+        }
+      };
+      
+      playDiceSound();
+      
       // Lancer tous les dés non verrouillés simultanément
       dices.forEach((dice, index) => {
         if (dice && !dice.locked) {

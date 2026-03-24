@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, Animated, Easing, Platform } from "react-native";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import { useFocusEffect } from '@react-navigation/native';
 import Background from "../components/Background";
 import FloatingDice from "../components/FloatingDice";
 import Header from "../components/Header";
@@ -119,6 +120,33 @@ export default function HomeScreen({ navigation }) {
 
     updateMusicVolume();
   }, [musicVolume]);
+
+  // Relancer la musique quand l'écran devient actif
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkAndRestartMusic = async () => {
+        if (musicRef.current) {
+          try {
+            const status = await musicRef.current.getStatusAsync();
+            
+            // Si la musique n'est pas en train de jouer, la relancer
+            if (status.isLoaded && !status.isPlaying) {
+              await musicRef.current.playAsync();
+            }
+          } catch (error) {
+            console.log('Erreur lors de la vérification de la musique:', error);
+          }
+        }
+      };
+
+      checkAndRestartMusic();
+      
+      // Optionnel: retour quand l'écran perd le focus
+      return () => {
+        // Ne rien faire, on laisse la musique jouer en arrière-plan
+      };
+    }, [])
+  );
 
   const ensureMusicPlayback = () => {
     if (musicRef.current) {

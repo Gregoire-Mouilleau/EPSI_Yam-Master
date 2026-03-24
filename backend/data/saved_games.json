@@ -1,13 +1,13 @@
 [
   {
-    "idGame": "14us381oicmn3b651a",
-    "player1Pseudo": "JoKlaie",
-    "player1AvatarKey": "avatar_5",
+    "idGame": "14us38co4mn4b09w4",
+    "player1Pseudo": "JoK2",
+    "player1AvatarKey": "avatar_1",
     "player2Pseudo": "🤖 Bot",
     "player2AvatarKey": "avatar_6",
     "gameState": {
-      "currentTurn": "player:2",
-      "timer": 27,
+      "currentTurn": "player:1",
+      "timer": 18,
       "player1Score": 0,
       "player2Score": 0,
       "grid": [
@@ -15,13 +15,13 @@
           {
             "viewContent": "1",
             "id": "brelan1",
-            "owner": "player:2",
+            "owner": null,
             "canBeChecked": false
           },
           {
             "viewContent": "3",
             "id": "brelan3",
-            "owner": "player:2",
+            "owner": null,
             "canBeChecked": false
           },
           {
@@ -39,7 +39,7 @@
           {
             "viewContent": "6",
             "id": "brelan6",
-            "owner": "player:2",
+            "owner": null,
             "canBeChecked": false
           }
         ],
@@ -53,7 +53,7 @@
           {
             "viewContent": "Carré",
             "id": "carre",
-            "owner": "player:2",
+            "owner": null,
             "canBeChecked": false
           },
           {
@@ -111,7 +111,7 @@
           {
             "viewContent": "6",
             "id": "brelan6",
-            "owner": "player:2",
+            "owner": null,
             "canBeChecked": false
           },
           {
@@ -143,7 +143,7 @@
           {
             "viewContent": "3",
             "id": "brelan3",
-            "owner": "player:2",
+            "owner": null,
             "canBeChecked": false
           },
           {
@@ -182,36 +182,36 @@
         "dices": [
           {
             "id": 1,
-            "value": "4",
-            "locked": false
+            "value": "",
+            "locked": true
           },
           {
             "id": 2,
-            "value": "2",
-            "locked": false
+            "value": "",
+            "locked": true
           },
           {
             "id": 3,
-            "value": "6",
+            "value": "",
             "locked": true
           },
           {
             "id": 4,
-            "value": "1",
-            "locked": false
+            "value": "",
+            "locked": true
           },
           {
             "id": 5,
-            "value": "6",
+            "value": "",
             "locked": true
           }
         ],
-        "rollsCounter": 3,
+        "rollsCounter": 1,
         "rollsMaximum": 3
       }
     },
     "isVsBot": true,
     "botDifficulty": "normal",
-    "savedAt": "2026-03-24T07:14:55.123Z"
+    "savedAt": "2026-03-24T07:39:29.301Z"
   }
 ]
