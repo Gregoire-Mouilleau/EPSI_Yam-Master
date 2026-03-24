@@ -1,0 +1,13 @@
+# Fichiers et dossiers à ignorer lors du build Docker
+
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.DS_Store
+*.md
+.vscode
+.idea
+data/*.db-shm
+data/*.db-wal

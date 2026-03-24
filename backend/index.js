@@ -13,14 +13,67 @@ const db = require('./db');
 
 const getUserByPseudoStmt = db.prepare('SELECT id, pseudo, avatar_key FROM users WHERE pseudo = ?');
 
-// Chemin pour sauvegarder les parties vs bot
-const SAVED_GAMES_DIR = path.join(__dirname, 'data');
-const SAVED_GAMES_FILE = path.join(SAVED_GAMES_DIR, 'saved_games.json');
+// Statements pour les sauvegardes vs bot (SQLite)
+const getSavedGameStmt = db.prepare('SELECT * FROM saved_games WHERE user_id = ?');
+const insertSavedGameStmt = db.prepare(`
+  INSERT INTO saved_games (user_id, game_state, created_at, updated_at)
+  VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+`);
+const updateSavedGameStmt = db.prepare(`
+  UPDATE saved_games 
+  SET game_state = ?, updated_at = CURRENT_TIMESTAMP 
+  WHERE user_id = ?
+`);
+const deleteSavedGameStmt = db.prepare('DELETE FROM saved_games WHERE user_id = ?');
 
-// Créer le dossier data s'il n'existe pas
-if (!fs.existsSync(SAVED_GAMES_DIR)) {
-  fs.mkdirSync(SAVED_GAMES_DIR, { recursive: true });
-}
+// Statements pour l'historique des parties
+const insertGameHistoryStmt = db.prepare(`
+  INSERT INTO game_history (
+    game_type, player1_id, player1_pseudo, player2_id, player2_pseudo,
+    winner_id, player1_score, player2_score, duration_seconds, played_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+`);
+
+// Fonction pour sauvegarder une partie dans l'historique
+const saveGameToHistory = (game, winner, player1Score, player2Score, durationSeconds = null) => {
+  try {
+    const gameType = game.isVsBot ? 'bot' : 'online';
+    
+    // Récupérer les IDs des utilisateurs
+    const player1 = getUserByPseudoStmt.get(game.player1Pseudo);
+    const player2 = game.isVsBot ? null : getUserByPseudoStmt.get(game.player2Pseudo);
+    
+    if (!player1) {
+      console.log(`[HISTORY] Player1 "${game.player1Pseudo}" introuvable, historique ignoré`);
+      return;
+    }
+    
+    // Déterminer l'ID du gagnant
+    let winnerId = null;
+    if (winner === 'player:1') {
+      winnerId = player1.id;
+    } else if (winner === 'player:2' && player2) {
+      winnerId = player2.id;
+    }
+    // Si winner === 'draw', winnerId reste null
+    
+    insertGameHistoryStmt.run(
+      gameType,
+      player1.id,
+      game.player1Pseudo,
+      player2 ? player2.id : null,
+      game.player2Pseudo || '🤖 Bot',
+      winnerId,
+      player1Score,
+      player2Score,
+      durationSeconds
+    );
+    
+    console.log(`[HISTORY] ✓ Partie sauvegardée: ${game.player1Pseudo} vs ${game.player2Pseudo || 'Bot'} (${winner})`);
+  } catch (error) {
+    console.error('[HISTORY ERROR]', error);
+  }
+};
 
 const app = express();
 const server = http.createServer(app);
@@ -548,6 +601,9 @@ const botChooseCell = (gameIndex, choiceId, strategy) => {
   // Vérifier ligne de 5 pour le bot
   const botHasLineOf5 = GameService.grid.findLines(games[gameIndex].gameState.grid, 'player:2', 5).length > 0;
   if (botHasLineOf5) {
+    // Sauvegarder dans l'historique
+    saveGameToHistory(games[gameIndex], 'player:2', 0, 0);
+    
     games[gameIndex].player1Socket.emit('game.ended', {
       winner: 'player:2',
       reason: 'line-of-5',
@@ -564,6 +620,9 @@ const botChooseCell = (gameIndex, choiceId, strategy) => {
   // Vérifier ligne de 5 pour le joueur
   const playerHasLineOf5 = GameService.grid.findLines(games[gameIndex].gameState.grid, 'player:1', 5).length > 0;
   if (playerHasLineOf5) {
+    // Sauvegarder dans l'historique
+    saveGameToHistory(games[gameIndex], 'player:1', 0, 0);
+    
     games[gameIndex].player1Socket.emit('game.ended', {
       winner: 'player:1',
       reason: 'line-of-5',
@@ -585,6 +644,9 @@ const botChooseCell = (gameIndex, choiceId, strategy) => {
     let winner = 'draw';
     if (player1Score > player2Score) winner = 'player:1';
     else if (player2Score > player1Score) winner = 'player:2';
+    
+    // Sauvegarder dans l'historique
+    saveGameToHistory(games[gameIndex], winner, player1Score, player2Score);
     
     games[gameIndex].player1Socket.emit('game.ended', {
       winner,
@@ -619,47 +681,73 @@ const removePlayerFromQueue = (socket) => {
   }
 };
 
-// Sauvegarder les parties vs bot dans un fichier JSON
+// Sauvegarder les parties vs bot dans SQLite
 const saveVsBotGames = () => {
   try {
-    const botGames = games.filter(game => game.isVsBot).map(game => ({
-      idGame: game.idGame,
-      player1Pseudo: game.player1Pseudo,
-      player1AvatarKey: game.player1AvatarKey,
-      player2Pseudo: game.player2Pseudo,
-      player2AvatarKey: game.player2AvatarKey,
-      gameState: game.gameState,
-      isVsBot: game.isVsBot,
-      botDifficulty: game.botDifficulty,
-      savedAt: new Date().toISOString()
-    }));
+    const botGames = games.filter(game => game.isVsBot);
+    console.log(`[SAVE] Sauvegarde de ${botGames.length} partie(s) vs bot...`);
     
-    fs.writeFileSync(SAVED_GAMES_FILE, JSON.stringify(botGames, null, 2));
+    botGames.forEach(game => {
+      try {
+        // Récupérer l'ID utilisateur depuis le pseudo
+        const user = getUserByPseudoStmt.get(game.player1Pseudo);
+        if (!user) {
+          console.log(`[SAVE] User "${game.player1Pseudo}" introuvable, sauvegarde ignorée`);
+          return;
+        }
+
+        const gameStateJson = JSON.stringify({
+          idGame: game.idGame,
+          player1Pseudo: game.player1Pseudo,
+          player1AvatarKey: game.player1AvatarKey,
+          player2Pseudo: game.player2Pseudo,
+          player2AvatarKey: game.player2AvatarKey,
+          gameState: game.gameState,
+          isVsBot: game.isVsBot,
+          botDifficulty: game.botDifficulty,
+          savedAt: new Date().toISOString()
+        });
+
+        // Vérifier si une sauvegarde existe déjà
+        const existing = getSavedGameStmt.get(user.id);
+        if (existing) {
+          updateSavedGameStmt.run(gameStateJson, user.id);
+        } else {
+          insertSavedGameStmt.run(user.id, gameStateJson);
+        }
+        
+        console.log(`[SAVE] ✓ Partie de "${game.player1Pseudo}" sauvegardée`);
+      } catch (err) {
+        console.error(`[SAVE ERROR] Erreur pour "${game.player1Pseudo}":`, err.message);
+      }
+    });
+    
     console.log(`[SAVE] ${botGames.length} partie(s) vs bot sauvegardée(s)`);
   } catch (error) {
     console.error('[SAVE ERROR]', error);
   }
 };
 
-// Charger les parties vs bot sauvegardées
+// Charger les parties vs bot sauvegardées (fonction conservée pour compatibilité)
 const loadVsBotGames = () => {
-  try {
-    if (fs.existsSync(SAVED_GAMES_FILE)) {
-      const data = fs.readFileSync(SAVED_GAMES_FILE, 'utf8');
-      const savedGames = JSON.parse(data);
-      console.log(`[LOAD] ${savedGames.length} partie(s) vs bot chargée(s)`);
-      return savedGames;
-    }
-  } catch (error) {
-    console.error('[LOAD ERROR]', error);
-  }
-  return [];
+  return []; // Non utilisée avec SQLite, conservée pour éviter les erreurs
 };
 
-// Trouver une partie sauvegardée pour un joueur
+// Trouver une partie sauvegardée pour un joueur (SQLite)
 const findSavedGameForPlayer = (playerPseudo) => {
-  const savedGames = loadVsBotGames();
-  return savedGames.find(game => game.player1Pseudo === playerPseudo);
+  try {
+    const user = getUserByPseudoStmt.get(playerPseudo);
+    if (!user) return null;
+    
+    const savedGame = getSavedGameStmt.get(user.id);
+    if (!savedGame) return null;
+    
+    // Parser le JSON du game_state
+    return JSON.parse(savedGame.game_state);
+  } catch (error) {
+    console.error('[LOAD ERROR]', error);
+    return null;
+  }
 };
 
 // Restaurer une partie vs bot pour un joueur reconnecté
@@ -1120,10 +1208,16 @@ io.on('connection', socket => {
     if (savedGame) {
       restoreVsBotGame(socket, savedGame);
       
-      // Supprimer la partie du fichier de sauvegarde
-      const savedGames = loadVsBotGames();
-      const updatedGames = savedGames.filter(g => g.player1Pseudo !== pseudo);
-      fs.writeFileSync(SAVED_GAMES_FILE, JSON.stringify(updatedGames, null, 2));
+      // Supprimer la partie de la base de données
+      try {
+        const user = getUserByPseudoStmt.get(pseudo);
+        if (user) {
+          deleteSavedGameStmt.run(user.id);
+          console.log(`[RESTORE] Sauvegarde supprimée pour "${pseudo}"`);
+        }
+      } catch (err) {
+        console.error('[RESTORE ERROR]', err);
+      }
     } else {
       socket.emit('vsbot.resume.error', { message: 'Aucune partie sauvegardée' });
     }
@@ -1138,14 +1232,15 @@ io.on('connection', socket => {
       if (user && user.avatar_key) {
         avatarKey = user.avatar_key;
       }
+      
+      // Supprimer toute partie sauvegardée existante
+      if (user) {
+        deleteSavedGameStmt.run(user.id);
+        console.log(`[NEW GAME] Sauvegarde supprimée pour "${pseudo}"`);
+      }
     } catch (error) {
-      console.error('Error fetching user avatar:', error);
+      console.error('Error handling vsbot.new:', error);
     }
-    
-    // Supprimer toute partie sauvegardée existante
-    const savedGames = loadVsBotGames();
-    const updatedGames = savedGames.filter(g => g.player1Pseudo !== pseudo);
-    fs.writeFileSync(SAVED_GAMES_FILE, JSON.stringify(updatedGames, null, 2));
     
     createGameVsBot(socket, pseudo, avatarKey);
   });
@@ -1319,6 +1414,9 @@ io.on('connection', socket => {
         clearInterval(games[gameIndex].gameInterval);
       }
 
+      // Sauvegarder dans l'historique
+      saveGameToHistory(games[gameIndex], 'player:1', 0, 0);
+
       games[gameIndex].player1Socket.emit('game.ended', {
         winner: 'player:1',
         reason: 'line-of-5',
@@ -1347,6 +1445,9 @@ io.on('connection', socket => {
       if (games[gameIndex].gameInterval) {
         clearInterval(games[gameIndex].gameInterval);
       }
+
+      // Sauvegarder dans l'historique
+      saveGameToHistory(games[gameIndex], 'player:2', 0, 0);
 
       games[gameIndex].player1Socket.emit('game.ended', {
         winner: 'player:2',
@@ -1393,6 +1494,9 @@ io.on('connection', socket => {
         : games[gameIndex].gameState.player2Score > games[gameIndex].gameState.player1Score 
           ? 'player:2' 
           : 'draw';
+
+      // Sauvegarder dans l'historique
+      saveGameToHistory(games[gameIndex], winner, games[gameIndex].gameState.player1Score, games[gameIndex].gameState.player2Score);
 
       games[gameIndex].player1Socket.emit('game.ended', {
         winner: winner,

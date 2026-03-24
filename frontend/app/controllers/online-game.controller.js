@@ -420,7 +420,7 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                         pseudoOpponent={pseudoOpponent}
                         avatarKeyPlayer={avatarKeyPlayer}
                         avatarKeyOpponent={avatarKeyOpponent}
-                        onClose={() => {
+                        onRematch={() => {
                             // Réinitialiser immédiatement les états de victoire pour masquer le modal
                             setGameEnded(false);
                             setGameEndData(null);
@@ -441,6 +441,23 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                             setTimeout(() => {
                                 navigation.navigate('OnlineGameScreen');
                             }, 100);
+                        }}
+                        onReturnToMenu={() => {
+                            // Réinitialiser immédiatement les états de victoire pour masquer le modal
+                            setGameEnded(false);
+                            setGameEndData(null);
+                            setInGame(false);
+                            setShowGameBoard(false);
+                            
+                            if (onGameStateChange) {
+                                onGameStateChange(false);
+                            }
+                            
+                            // Quitter proprement
+                            socket.emit("queue.leave");
+                            
+                            // Juste revenir au menu principal
+                            navigation.navigate('HomeScreen');
                         }}
                     />
                 )}

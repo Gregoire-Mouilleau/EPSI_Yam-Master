@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { getAvatarSource } from '../../constants/avatars';
+import { useLanguage } from '../../contexts/language.context';
 
 export default function GameEndModal({ 
     visible, 
@@ -13,8 +14,10 @@ export default function GameEndModal({
     pseudoOpponent,
     avatarKeyPlayer,
     avatarKeyOpponent,
-    onClose 
+    onRematch,
+    onReturnToMenu 
 }) {
+    const { t } = useLanguage();
     const isPlayerWinner = winner === playerKey;
     const isDraw = winner === 'draw';
     
@@ -48,20 +51,20 @@ export default function GameEndModal({
     
     const getReasonText = () => {
         if (reason === 'line-of-5') {
-            return '🏆 Ligne de 5 jetons !';
+            return t('gameEndLineOf5');
         } else if (reason === 'score') {
-            return '🏆 Plateau rempli - Victoire au score !';
+            return t('gameEndScore');
         } else if (reason === 'disconnect') {
-            return isPlayerWinner ? '🏆 Victoire par forfait !' : '😔 Défaite par déconnexion';
+            return isPlayerWinner ? t('gameEndForfeit') : t('gameEndDisconnect');
         }
         return '';
     };
 
     const getHeaderText = () => {
         if (isDraw) {
-            return '⚔️ ÉGALITÉ ⚔️';
+            return t('gameEndDraw');
         }
-        return isPlayerWinner ? '🎉 VICTOIRE ! 🎉' : '😔 DÉFAITE 😔';
+        return isPlayerWinner ? t('gameEndVictory') : t('gameEndDefeat');
     };
 
     return (
@@ -69,7 +72,7 @@ export default function GameEndModal({
             visible={visible}
             transparent={true}
             animationType="fade"
-            onRequestClose={onClose}
+            onRequestClose={onReturnToMenu}
         >
             <View style={styles.overlay}>
                 <View style={styles.modalContainer}>
@@ -108,10 +111,22 @@ export default function GameEndModal({
                         </View>
                     </View>
 
-                    {/* Bouton rejouer */}
-                    <TouchableOpacity style={styles.button} onPress={onClose}>
-                        <Text style={styles.buttonText}>🎮 Rejouer</Text>
-                    </TouchableOpacity>
+                    {/* Boutons d'action */}
+                    <View style={styles.buttonsContainer}>
+                        <TouchableOpacity 
+                            style={[styles.button, styles.rematchButton]} 
+                            onPress={onRematch}
+                        >
+                            <Text style={styles.buttonText}>🎮 Rejouer</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                            style={[styles.button, styles.menuButton]} 
+                            onPress={onReturnToMenu}
+                        >
+                            <Text style={styles.buttonText}>🏠 Menu</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
         </Modal>

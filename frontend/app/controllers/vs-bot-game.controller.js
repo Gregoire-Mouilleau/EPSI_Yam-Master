@@ -283,7 +283,7 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
                     pseudoOpponent={pseudoOpponent}
                     avatarKeyPlayer={avatarKeyPlayer}
                     avatarKeyOpponent={avatarKeyOpponent}
-                    onClose={() => {
+                    onRematch={() => {
                         setGameEnded(false);
                         setGameEndData(null);
                         setInGame(false);
@@ -300,6 +300,19 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
                         setTimeout(() => {
                             navigation.navigate('VsBotGameScreen');
                         }, 100);
+                    }}
+                    onReturnToMenu={() => {
+                        setGameEnded(false);
+                        setGameEndData(null);
+                        setInGame(false);
+                        setShowGameBoard(false);
+                        
+                        if (onGameStateChange) {
+                            onGameStateChange(false);
+                        }
+                        
+                        // Juste revenir au menu principal
+                        navigation.navigate('HomeScreen');
                     }}
                 />
             )}

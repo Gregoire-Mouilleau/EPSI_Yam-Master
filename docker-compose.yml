@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # Backend Node.js
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: diceforge-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persister la base de données SQLite
+      - ./backend/data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    networks:
+      - diceforge-network
+  
+  # Frontend (optionnel - pour déploiement web)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: diceforge-frontend
+  #   ports:
+  #     - "8081:8081"
+  #   depends_on:
+  #     - backend
+  #   restart: unless-stopped
+  #   networks:
+  #     - diceforge-network
+
+networks:
+  diceforge-network:
+    driver: bridge
+
+volumes:
+  # Volume pour persister la base de données
+  backend-data:
+    driver: local
