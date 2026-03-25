@@ -234,6 +234,12 @@ const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
     
     const loadSound = async () => {
       try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: false,
+        });
+
         // Décharger l'ancien son s'il existe
         if (soundRef.current) {
           await soundRef.current.unloadAsync();
@@ -241,8 +247,8 @@ const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
         }
         
         const { sound } = await Audio.Sound.createAsync(
-          require('../../../assets/dice_roll.mp3'),
-          { shouldPlay: false, volume: 0.5 }
+          require('../../../../assets/dice_roll.mp3'),
+          { shouldPlay: false, volume: 1.0 }
         );
         
         if (isMounted) {

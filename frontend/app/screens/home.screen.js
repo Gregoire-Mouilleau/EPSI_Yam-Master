@@ -1,8 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, Animated, Easing, Platform } from "react-native";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
-import { useFocusEffect } from '@react-navigation/native';
 import Background from "../components/Background";
 import FloatingDice from "../components/FloatingDice";
 import Header from "../components/Header";
@@ -11,159 +9,28 @@ import GameButton from "../components/GameButton";
 import { SocketContext } from "../contexts/socket.context";
 import { AuthContext } from "../contexts/auth.context";
 import { LanguageContext } from "../contexts/language.context";
+import { useMusicContext } from "../contexts/music.context";
 import styles from "./home.styles";
 import { getHomeTexts } from "../i18n";
-
-const BACKGROUND_MUSIC_ASSET = require('../../assets/musique_background.mp3');
 
 export default function HomeScreen({ navigation }) {
   const socket = useContext(SocketContext);
   const { user, logout } = useContext(AuthContext);
   const { language, toggleLanguage } = useContext(LanguageContext);
+  const { musicVolume, setMusicVolume } = useMusicContext();
   const [hoverOnline, setHoverOnline] = useState(false);
   const [hoverBot, setHoverBot] = useState(false);
   const [hoverProfile, setHoverProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [musicVolume, setMusicVolume] = useState(50);
-  const musicRef = useRef(null);
   const settingsRotate = useRef(new Animated.Value(0)).current;
   const settingsFloat = useRef(new Animated.Value(0)).current;
   const settingsScale = useRef(new Animated.Value(1)).current;
   const settingsHoverLoopRef = useRef(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    let removeWebUnlockListeners = null;
-
-    const startMusic = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: true,
-        });
-
-        const { sound } = await Audio.Sound.createAsync(
-          BACKGROUND_MUSIC_ASSET,
-          {
-            shouldPlay: true,
-            isLooping: true,
-            volume: musicVolume / 100,
-          }
-        );
-
-        if (!isMounted) {
-          await sound.unloadAsync();
-          return;
-        }
-
-        musicRef.current = sound;
-
-        const tryPlaySound = async () => {
-          try {
-            await sound.playAsync();
-          } catch (error) {
-            // Sur web, Chrome peut exiger une interaction utilisateur.
-          }
-        };
-
-        await tryPlaySound();
-
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          const unlockOnInteraction = () => {
-            tryPlaySound();
-          };
-
-          window.addEventListener('pointerdown', unlockOnInteraction);
-          window.addEventListener('keydown', unlockOnInteraction);
-          window.addEventListener('touchstart', unlockOnInteraction);
-
-          removeWebUnlockListeners = () => {
-            window.removeEventListener('pointerdown', unlockOnInteraction);
-            window.removeEventListener('keydown', unlockOnInteraction);
-            window.removeEventListener('touchstart', unlockOnInteraction);
-          };
-        }
-      } catch (error) {
-        console.log('Impossible de lancer la musique de fond:', error);
-      }
-    };
-
-    startMusic();
-
-    return () => {
-      isMounted = false;
-
-      if (removeWebUnlockListeners) {
-        removeWebUnlockListeners();
-      }
-
-      const sound = musicRef.current;
-      musicRef.current = null;
-
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const updateMusicVolume = async () => {
-      if (!musicRef.current) return;
-
-      try {
-        await musicRef.current.setVolumeAsync(musicVolume / 100);
-      } catch (error) {
-        console.log('Impossible de mettre à jour le volume:', error);
-      }
-    };
-
-    updateMusicVolume();
-  }, [musicVolume]);
-
-  // Relancer la musique quand l'écran devient actif
-  useFocusEffect(
-    React.useCallback(() => {
-      const checkAndRestartMusic = async () => {
-        if (musicRef.current) {
-          try {
-            const status = await musicRef.current.getStatusAsync();
-            
-            // Si la musique n'est pas en train de jouer, la relancer
-            if (status.isLoaded && !status.isPlaying) {
-              await musicRef.current.playAsync();
-            }
-          } catch (error) {
-            console.log('Erreur lors de la vérification de la musique:', error);
-          }
-        }
-      };
-
-      checkAndRestartMusic();
-      
-      // Optionnel: retour quand l'écran perd le focus
-      return () => {
-        // Ne rien faire, on laisse la musique jouer en arrière-plan
-      };
-    }, [])
-  );
-
-  const ensureMusicPlayback = () => {
-    if (musicRef.current) {
-      musicRef.current.playAsync().catch(() => {});
-    }
-  };
-
-  const decreaseVolume = () => {
-    setMusicVolume((prev) => Math.max(0, prev - 10));
-  };
-
-  const increaseVolume = () => {
-    setMusicVolume((prev) => Math.min(100, prev + 10));
-  };
+  const decreaseVolume = () => setMusicVolume((prev) => Math.max(0, prev - 10));
+  const increaseVolume = () => setMusicVolume((prev) => Math.min(100, prev + 10));
 
   const handleDisconnect = async () => {
-    ensureMusicPlayback();
     if (socket && socket.connected) {
       socket.disconnect();
     }
@@ -171,7 +38,6 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleOpenSettings = () => {
-    ensureMusicPlayback();
     setShowSettings((prev) => !prev);
   };
 
@@ -270,7 +136,6 @@ export default function HomeScreen({ navigation }) {
         onHoverOut={() => setHoverProfile(false)}
         onProfilePress={() => navigation.navigate('ProfileScreen')}
         onLeaderboardPress={() => {
-          ensureMusicPlayback();
           navigation.navigate('LeaderboardScreen');
         }}
         profileLabel={user ? user.pseudo : texts.signIn}
@@ -286,7 +151,6 @@ export default function HomeScreen({ navigation }) {
             icon="🎮"
             title={texts.playOnline}
             onPress={() => {
-              ensureMusicPlayback();
               if (!user) {
                 navigation.navigate('ProfileScreen');
                 return;
@@ -302,7 +166,6 @@ export default function HomeScreen({ navigation }) {
             icon="🤖"
             title={texts.playVsBot}
             onPress={() => {
-              ensureMusicPlayback();
               if (!user) {
                 navigation.navigate('ProfileScreen');
                 return;
