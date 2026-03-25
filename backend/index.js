@@ -9,6 +9,7 @@ const path = require('path');
 const GameService = require('./services/game.service');
 const BotService = require('./services/bot.service');
 const authRoutes = require('./routes/auth.routes');
+const historyRoutes = require('./routes/history.routes');
 const db = require('./db');
 
 const getUserByPseudoStmt = db.prepare('SELECT id, pseudo, avatar_key FROM users WHERE pseudo = ?');
@@ -30,12 +31,12 @@ const deleteSavedGameStmt = db.prepare('DELETE FROM saved_games WHERE user_id = 
 const insertGameHistoryStmt = db.prepare(`
   INSERT INTO game_history (
     game_type, player1_id, player1_pseudo, player2_id, player2_pseudo,
-    winner_id, player1_score, player2_score, duration_seconds, played_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    winner_id, player1_score, player2_score, duration_seconds, moves_json, end_reason, played_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 `);
 
 // Fonction pour sauvegarder une partie dans l'historique
-const saveGameToHistory = (game, winner, player1Score, player2Score, durationSeconds = null) => {
+const saveGameToHistory = (game, winner, player1Score, player2Score, durationSeconds = null, endReason = 'score') => {
   try {
     const gameType = game.isVsBot ? 'bot' : 'online';
     
@@ -56,6 +57,10 @@ const saveGameToHistory = (game, winner, player1Score, player2Score, durationSec
       winnerId = player2.id;
     }
     // Si winner === 'draw', winnerId reste null
+
+    const movesJson = game.moves && game.moves.length > 0
+      ? JSON.stringify(game.moves)
+      : null;
     
     insertGameHistoryStmt.run(
       gameType,
@@ -66,7 +71,9 @@ const saveGameToHistory = (game, winner, player1Score, player2Score, durationSec
       winnerId,
       player1Score,
       player2Score,
-      durationSeconds
+      durationSeconds,
+      movesJson,
+      endReason
     );
     
     console.log(`[HISTORY] ✓ Partie sauvegardée: ${game.player1Pseudo} vs ${game.player2Pseudo || 'Bot'} (${winner})`);
@@ -88,6 +95,7 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api', historyRoutes);
 
 let games = [];
 let queue = [];
@@ -168,6 +176,7 @@ const createGame = (player1Socket, player1Pseudo, player1AvatarKey, player2Socke
   newGame['player2Pseudo'] = player2Pseudo;
   newGame['player2AvatarKey'] = player2AvatarKey;
   newGame['isVsBot'] = false;
+  newGame['moves'] = [];
   
   // Pierre-papier-ciseaux pour déterminer qui commence
   newGame['rpsPlayer1Choice'] = null;
@@ -216,6 +225,7 @@ const createGameVsBot = (playerSocket, playerPseudo, playerAvatarKey) => {
   newGame['player2AvatarKey'] = 'avatar_6'; // Avatar du bot
   newGame['isVsBot'] = true; // Marquer cette partie comme vs Bot
   newGame['botDifficulty'] = 'normal'; // Niveau du bot
+  newGame['moves'] = [];
 
   games.push(newGame);
 
@@ -602,7 +612,9 @@ const botChooseCell = (gameIndex, choiceId, strategy) => {
   const botHasLineOf5 = GameService.grid.findLines(games[gameIndex].gameState.grid, 'player:2', 5).length > 0;
   if (botHasLineOf5) {
     // Sauvegarder dans l'historique
-    saveGameToHistory(games[gameIndex], 'player:2', 0, 0);
+    const p1ScoreBot = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:1');
+    const p2ScoreBot = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:2');
+    saveGameToHistory(games[gameIndex], 'player:2', p1ScoreBot, p2ScoreBot, null, 'line-of-5');
     
     games[gameIndex].player1Socket.emit('game.ended', {
       winner: 'player:2',
@@ -621,7 +633,9 @@ const botChooseCell = (gameIndex, choiceId, strategy) => {
   const playerHasLineOf5 = GameService.grid.findLines(games[gameIndex].gameState.grid, 'player:1', 5).length > 0;
   if (playerHasLineOf5) {
     // Sauvegarder dans l'historique
-    saveGameToHistory(games[gameIndex], 'player:1', 0, 0);
+    const p1ScorePlayer = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:1');
+    const p2ScorePlayer = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:2');
+    saveGameToHistory(games[gameIndex], 'player:1', p1ScorePlayer, p2ScorePlayer, null, 'line-of-5');
     
     games[gameIndex].player1Socket.emit('game.ended', {
       winner: 'player:1',
@@ -1400,6 +1414,16 @@ io.on('connection', socket => {
     games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
     games[gameIndex].gameState.grid = GameService.grid.selectCell(data.cellId, data.rowIndex, data.cellIndex, games[gameIndex].gameState.currentTurn, games[gameIndex].gameState.grid);
 
+    if (!games[gameIndex].moves) games[gameIndex].moves = [];
+    games[gameIndex].moves.push({
+      turn: games[gameIndex].moves.length + 1,
+      player: games[gameIndex].gameState.currentTurn,
+      rowIndex: data.rowIndex,
+      cellIndex: data.cellIndex,
+      cellId: data.cellId,
+      diceValues: games[gameIndex].gameState.deck.dices.map(d => d.value),
+    });
+
     // IMPORTANT : Mettre à jour la grille côté client IMMÉDIATEMENT
     // pour que le dernier jeton soit visible avant la fin de partie
     updateClientsViewGrid(games[gameIndex]);
@@ -1415,7 +1439,9 @@ io.on('connection', socket => {
       }
 
       // Sauvegarder dans l'historique
-      saveGameToHistory(games[gameIndex], 'player:1', 0, 0);
+      const p1Score5 = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:1');
+      const p2Score5 = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:2');
+      saveGameToHistory(games[gameIndex], 'player:1', p1Score5, p2Score5, null, 'line-of-5');
 
       games[gameIndex].player1Socket.emit('game.ended', {
         winner: 'player:1',
@@ -1447,7 +1473,9 @@ io.on('connection', socket => {
       }
 
       // Sauvegarder dans l'historique
-      saveGameToHistory(games[gameIndex], 'player:2', 0, 0);
+      const p1Score5p2 = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:1');
+      const p2Score5p2 = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:2');
+      saveGameToHistory(games[gameIndex], 'player:2', p1Score5p2, p2Score5p2, null, 'line-of-5');
 
       games[gameIndex].player1Socket.emit('game.ended', {
         winner: 'player:2',

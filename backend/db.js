@@ -68,6 +68,14 @@ db.exec(`CREATE INDEX IF NOT EXISTS idx_game_history_player1 ON game_history(pla
 db.exec(`CREATE INDEX IF NOT EXISTS idx_game_history_player2 ON game_history(player2_id, played_at DESC)`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_game_history_type ON game_history(game_type, played_at DESC)`);
 
+const gameHistoryColumns = db.prepare("PRAGMA table_info(game_history)").all();
+if (!gameHistoryColumns.some(col => col.name === 'moves_json')) {
+  db.exec("ALTER TABLE game_history ADD COLUMN moves_json TEXT");
+}
+if (!gameHistoryColumns.some(col => col.name === 'end_reason')) {
+  db.exec("ALTER TABLE game_history ADD COLUMN end_reason TEXT");
+}
+
 console.log('[DB] Base de données initialisée avec succès');
 
 module.exports = db;

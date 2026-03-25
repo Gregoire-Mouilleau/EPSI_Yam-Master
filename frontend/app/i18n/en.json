@@ -28,15 +28,15 @@
   "gameEndForfeit": "🏆 Victory by forfeit!",
   "gameEndDisconnect": "😔 Defeat by disconnection",
   "gameEndDraw": "⚔️ DRAW ⚔️",
-  "gameEndVictory": "🎉 VICTORY! 🎉",
-  "gameEndDefeat": "😔 DEFEAT 😔",
+  "gameEndVictory": "VICTORY!",
+  "gameEndDefeat": "DEFEAT",
   "gameEndDrawText": "Draw!",
   "gameEndWins": "wins!",
   "gameEndLine": "line",
   "gameEndLines": "lines",
   "gameEndVs": "VS",
-  "gameEndRematch": "🎮 Rematch",
-  "gameEndMenu": "🏠 Menu",
+  "gameEndRematch": "Rematch",
+  "gameEndMenu": "Menu",
   "rpsTitle": "🎮 Rock, Paper, Scissors! 🎮",
   "rpsSubtitle": "Choose your weapon to decide who starts!",
   "rpsRock": "Rock",
@@ -64,5 +64,6 @@
   "disconnectForfeitTitle": "Victory by forfeit!",
   "disconnectForfeitMessage": "Your opponent did not reconnect.\nYou win the game!",
   "choicesHeader": "⚡ AVAILABLE COMBINATIONS",
-  "choicesNone": "No combination available"
+  "choicesNone": "No combination available",
+  "history": "HISTORY"
 }

@@ -5,16 +5,16 @@
 
 const express = require('express');
 const router = express.Router();
-const db = require('./db');
-const authMiddleware = require('./middlewares/auth.middleware');
+const db = require('../db');
+const { requireAuth } = require('../middlewares/auth.middleware');
 
 // Récupérer l'historique d'un joueur
-router.get('/history/:userId', authMiddleware, (req, res) => {
+router.get('/history/:userId', requireAuth, (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     
     // Vérifier que l'utilisateur demande ses propres données
-    if (req.userId !== userId) {
+    if (req.auth.sub !== userId) {
       return res.status(403).json({ message: 'Accès refusé' });
     }
     
@@ -37,8 +37,39 @@ router.get('/history/:userId', authMiddleware, (req, res) => {
   }
 });
 
+router.get('/history/game/:gameId', requireAuth, (req, res) => {
+  try {
+    const gameId = parseInt(req.params.gameId);
+    const stmt = db.prepare('SELECT * FROM game_history WHERE id = ?');
+    const game = stmt.get(gameId);
+
+    if (!game) {
+      return res.status(404).json({ message: 'Partie introuvable' });
+    }
+
+    const userId = req.auth.sub;
+    if (game.player1_id !== userId && game.player2_id !== userId) {
+      return res.status(403).json({ message: 'Accès refusé' });
+    }
+
+    const moves = game.moves_json ? JSON.parse(game.moves_json) : [];
+
+    return res.json({
+      success: true,
+      game: {
+        ...game,
+        moves,
+        moves_json: undefined,
+      },
+    });
+  } catch (error) {
+    console.error('[GAME DETAIL API ERROR]', error);
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 // Statistiques d'un joueur
-router.get('/stats/:userId', authMiddleware, (req, res) => {
+router.get('/stats/:userId', requireAuth, (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     

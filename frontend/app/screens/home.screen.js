@@ -176,6 +176,16 @@ export default function HomeScreen({ navigation }) {
             onHoverIn={() => setHoverBot(true)}
             onHoverOut={() => setHoverBot(false)}
           />
+
+          {!!user && (
+            <TouchableOpacity
+              style={styles.historyButton}
+              onPress={() => navigation.navigate('HistoryScreen')}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.historyButtonText}>📜 {texts.history}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.decorativeElements}>

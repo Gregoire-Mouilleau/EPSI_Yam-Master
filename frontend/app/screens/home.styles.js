@@ -224,6 +224,20 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     fontSize: 14,
   },
+  historyButton: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(201,168,76,0.5)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: 'rgba(201,168,76,0.08)',
+  },
+  historyButtonText: {
+    color: '#C9A84C',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
 });
 
 export default styles;

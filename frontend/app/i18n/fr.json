@@ -28,15 +28,15 @@
   "gameEndForfeit": "🏆 Victoire par forfait !",
   "gameEndDisconnect": "😔 Défaite par déconnexion",
   "gameEndDraw": "⚔️ ÉGALITÉ ⚔️",
-  "gameEndVictory": "🎉 VICTOIRE ! 🎉",
-  "gameEndDefeat": "😔 DÉFAITE 😔",
+  "gameEndVictory": "VICTOIRE !",
+  "gameEndDefeat": "DÉFAITE",
   "gameEndDrawText": "Match nul !",
   "gameEndWins": "gagne !",
   "gameEndLine": "ligne",
   "gameEndLines": "lignes",
   "gameEndVs": "VS",
-  "gameEndRematch": "🎮 Rejouer",
-  "gameEndMenu": "🏠 Menu",
+  "gameEndRematch": "Rejouer",
+  "gameEndMenu": "Menu",
   "rpsTitle": "🎮 Pierre, Papier, Ciseaux ! 🎮",
   "rpsSubtitle": "Choisis ton arme pour décider qui commence !",
   "rpsRock": "Pierre",
@@ -64,5 +64,6 @@
   "disconnectForfeitTitle": "Victoire par forfait !",
   "disconnectForfeitMessage": "Votre adversaire ne s'est pas reconnecté.\nVous gagnez la partie !",
   "choicesHeader": "⚡ COMBINAISONS DISPONIBLES",
-  "choicesNone": "Aucune combinaison disponible"
+  "choicesNone": "Aucune combinaison disponible",
+  "history": "HISTORIQUE"
 }
