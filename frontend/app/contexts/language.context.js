@@ -1,16 +1,10 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import fr from '../i18n/fr.json';
-import en from '../i18n/en.json';
+import { DICTIONARIES } from '../i18n';
 
 export const LanguageContext = createContext();
 
 const LANGUAGE_STORAGE_KEY = '@app_language';
-
-const DICTIONARIES = {
-  FR: fr,
-  EN: en,
-};
 
 export const LanguageProvider = ({ children }) => {
   const [language, setLanguageState] = useState('FR'); // Default to French

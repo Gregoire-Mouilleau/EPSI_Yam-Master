@@ -1,0 +1,187 @@
+import { StyleSheet } from 'react-native';
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#1A0500',
+  },
+  diceLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+    zIndex: 0,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(201,168,76,0.3)',
+  },
+  backButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  backButtonText: {
+    color: '#C9A84C',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#C9A84C',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 3,
+  },
+  headerSpacer: { width: 70 },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    color: '#C9A84C',
+    marginTop: 12,
+    fontSize: 15,
+  },
+  errorText: {
+    color: '#DC143C',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    color: '#D4B896',
+    fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  emptySubText: {
+    color: '#9B7B4A',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#DC143C',
+    borderRadius: 10,
+    paddingHorizontal: 28,
+    paddingVertical: 10,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    padding: 16,
+    gap: 14,
+  },
+  gameCard: {
+    backgroundColor: 'rgba(26,10,0,0.9)',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(201,168,76,0.4)',
+    padding: 16,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  badgeWin: { backgroundColor: '#1B5E20' },
+  badgeLoss: { backgroundColor: '#7F0000' },
+  badgeDraw: { backgroundColor: '#4A4A00' },
+  badgeText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 1,
+  },
+  gameTypePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: 'rgba(201,168,76,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.4)',
+  },
+  gameTypeText: {
+    color: '#C9A84C',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  playersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  playerName: {
+    color: '#D4B896',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'center',
+  },
+  scoreBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  score: {
+    color: '#C9A84C',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  scoreSep: {
+    color: '#9B7B4A',
+    fontSize: 18,
+    fontWeight: '400',
+    marginHorizontal: 4,
+  },
+  lineOf5Text: {
+    color: '#C9A84C',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  dateText: {
+    color: '#9B7B4A',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  reviewButton: {
+    backgroundColor: 'rgba(220,20,60,0.85)',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  reviewButtonText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+});
+
+export default styles;

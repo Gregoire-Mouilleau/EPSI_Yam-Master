@@ -1,7 +1,7 @@
 import fr from './fr.json';
 import en from './en.json';
 
-const DICTIONARIES = {
+export const DICTIONARIES = {
   FR: fr,
   EN: en,
 };

@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
-import { View, StyleSheet, Animated, Easing, TouchableOpacity } from "react-native";
+﻿import React, { useEffect, useRef, useState } from "react";
+import { View, Animated, Easing, TouchableOpacity } from "react-native";
+import styles from './dice-rolling-area.styles';
 import { Audio } from 'expo-av';
 
 const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
@@ -253,13 +254,11 @@ const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
         
         if (isMounted) {
           soundRef.current = sound;
-          console.log('Son des dés chargé avec succès');
         } else {
           // Si le composant est démonté pendant le chargement, décharger le son
           await sound.unloadAsync();
         }
       } catch (error) {
-        console.log('Erreur chargement son dés:', error);
       }
     };
     
@@ -290,7 +289,6 @@ const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
               await soundRef.current.playAsync();
             }
           } catch (error) {
-            console.log('Erreur lecture son dés:', error);
           }
         }
       };
@@ -376,102 +374,5 @@ const DiceRollingArea = ({ dices, isRolling, onDicePress }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  diceContainer: {
-    position: 'absolute',
-  },
-  dice: {
-    width: 65,
-    height: 65,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#1A1A1A",
-    // Effet 3D TRÈS prononcé avec gradients exagérés
-    borderTopWidth: 1,
-    borderTopColor: "#FFFFFF",
-    borderLeftWidth: 1,
-    borderLeftColor: "#FAFAFA",
-    borderRightWidth: 4,
-    borderRightColor: "#909090",
-    borderBottomWidth: 4,
-    borderBottomColor: "#707070",
-    // Ombres multiples TRÈS profondes pour effet 3D
-    shadowColor: "#000",
-    shadowOffset: { width: 3, height: 12 },
-    shadowOpacity: 0.8,
-    shadowRadius: 16,
-    elevation: 25,
-  },
-  lockedDice: {
-    backgroundColor: "#B0B0B0",
-    borderTopColor: "#CCCCCC",
-    borderLeftColor: "#B8B8B8",
-    borderRightColor: "#707070",
-    borderBottomColor: "#505050",
-  },
-  emptyDice: {
-    backgroundColor: "#F8F8F8",
-    borderTopColor: "#FFFFFF",
-    borderLeftColor: "#F5F5F5",
-    borderRightColor: "#D0D0D0",
-    borderBottomColor: "#C0C0C0",
-    opacity: 0.35,
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#0A0A0A",
-    position: 'absolute',
-    // Ombre pour les points (effet gravé)
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.6,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  'top-left': {
-    top: 11,
-    left: 11,
-  },
-  'top-right': {
-    top: 11,
-    right: 11,
-  },
-  'center': {
-    top: '50%',
-    left: '50%',
-    marginTop: -6,
-    marginLeft: -6,
-  },
-  'middle-left': {
-    top: '50%',
-    left: 11,
-    marginTop: -6,
-  },
-  'middle-right': {
-    top: '50%',
-    right: 11,
-    marginTop: -6,
-  },
-  'bottom-left': {
-    bottom: 11,
-    left: 11,
-  },
-  'bottom-right': {
-    bottom: 11,
-    right: 11,
-  },
-});
 
 export default DiceRollingArea;

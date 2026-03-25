@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { socketEndpoint } from './socket.context';
+import { apiRequest } from '../services/api';
 
 const AUTH_STORAGE_KEY = 'masteryam.auth';
 
@@ -16,24 +16,6 @@ export const AuthContext = createContext({
   getLeaderboard: async () => ({ success: false }),
   logout: async () => {},
 });
-
-async function request(path, options = {}) {
-  const response = await fetch(`${socketEndpoint}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Erreur serveur');
-  }
-
-  return data;
-}
 
 export function AuthProvider({ children }) {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -73,7 +55,7 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async ({ pseudo, password, avatarKey }) => {
     try {
-      const data = await request('/api/auth/register', {
+      const data = await apiRequest('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({ pseudo, password, avatarKey }),
       });
@@ -87,7 +69,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async ({ pseudo, password }) => {
     try {
-      const data = await request('/api/auth/login', {
+      const data = await apiRequest('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ pseudo, password }),
       });
@@ -103,7 +85,7 @@ export function AuthProvider({ children }) {
     if (!token) return { success: false, message: 'Non connecté' };
 
     try {
-      const data = await request('/api/auth/me', {
+      const data = await apiRequest('/api/auth/me', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -121,7 +103,7 @@ export function AuthProvider({ children }) {
     if (!token) return { success: false, message: 'Non connecté' };
 
     try {
-      const data = await request('/api/auth/avatar', {
+      const data = await apiRequest('/api/auth/avatar', {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -140,7 +122,7 @@ export function AuthProvider({ children }) {
     if (!token) return { success: false, message: 'Non connecté' };
 
     try {
-      const data = await request('/api/auth/profile', {
+      const data = await apiRequest('/api/auth/profile', {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -160,7 +142,7 @@ export function AuthProvider({ children }) {
     if (!token) return { success: false, message: 'Non connecté' };
 
     try {
-      const data = await request('/api/auth/leaderboard', {
+      const data = await apiRequest('/api/auth/leaderboard', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,

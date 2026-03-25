@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Image, StyleSheet } from "react-native";
+import { View, Image } from "react-native";
+import styles from './Logo.styles';
 
 export default function Logo() {
   return (
@@ -12,16 +13,4 @@ export default function Logo() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  logoWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 28,
-  },
-  centerLogo: {
-    width: 811,
-    height: 406,
-    opacity: 0.95,
-  },
-});
+

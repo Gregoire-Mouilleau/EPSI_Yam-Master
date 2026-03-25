@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Animated, StyleSheet, Dimensions } from "react-native";
+import { Animated, Dimensions } from "react-native";
+import styles from './FloatingDice.styles';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -100,12 +101,4 @@ export default function FloatingDice() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  dice: {
-    position: 'absolute',
-    fontSize: 50,
-    opacity: 0.2,
-    top: 0,
-  },
-});
+

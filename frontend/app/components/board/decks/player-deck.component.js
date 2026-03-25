@@ -1,11 +1,14 @@
-import React, { useState, useContext, useEffect } from "react";
-import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+﻿import React, { useState, useContext, useEffect } from "react";
+import { View, TouchableOpacity, Text } from "react-native";
 import { SocketContext } from "../../../contexts/socket.context";
+import { useLanguage } from '../../../contexts/language.context';
+import styles from './player-deck.styles';
 import Dice from "./dice.component";
 
 const PlayerDeck = () => {
 
   const socket = useContext(SocketContext);
+  const { t } = useLanguage();
   const [displayPlayerDeck, setDisplayPlayerDeck] = useState(false);
   const [dices, setDices] = useState(Array(5).fill(false));
   const [displayRollButton, setDisplayRollButton] = useState(false);
@@ -51,13 +54,13 @@ const PlayerDeck = () => {
         <>
           <View style={styles.rollInfoContainer}>
             <Text style={styles.rollInfoText}>
-              Lancer {rollsCounter - 1} / {rollsMaximum}
+              {t('playerRollLabel')} {rollsCounter - 1} / {rollsMaximum}
             </Text>
           </View>
 
           {displayRollButton && (
             <TouchableOpacity style={styles.rollButton} onPress={rollDices}>
-              <Text style={styles.rollButtonText}>🎲 LANCER LES DÉS</Text>
+              <Text style={styles.rollButtonText}>{t('playerRollButton')}</Text>
             </TouchableOpacity>
           )}
         </>
@@ -66,51 +69,5 @@ const PlayerDeck = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  deckPlayerContainer: {
-    width: '100%',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-  },
-  rollInfoContainer: {
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  rollInfoText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  rollButton: {
-    backgroundColor: '#228B22',
-    paddingVertical: 14,
-    paddingHorizontal: 35,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#32CD32',
-    shadowColor: '#00FF00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  rollButtonText: {
-    fontSize: 18,
-    color: 'white',
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-});
 
 export default PlayerDeck;

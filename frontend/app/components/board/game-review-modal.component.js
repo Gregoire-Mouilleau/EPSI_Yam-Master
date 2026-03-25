@@ -6,8 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  ScrollView,
-  Platform,
 } from 'react-native';
 import FloatingDice from '../FloatingDice';
 
@@ -101,7 +99,7 @@ export default function GameReviewModal({ visible, game, player1Pseudo, onClose 
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.diceLayer} pointerEvents="none">
-          {Platform.OS === 'web' ? <FloatingDice /> : <FloatingDice />}
+          <FloatingDice />
         </View>
 
         <View style={styles.bgPattern} pointerEvents="none">

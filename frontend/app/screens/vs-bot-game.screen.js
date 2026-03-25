@@ -1,53 +1,33 @@
-import React, { useContext, useState } from "react";
-import { StyleSheet, View, Text } from "react-native";
+import React, { useContext } from "react";
+import { View, Text } from "react-native";
+import styles from './vs-bot-game.styles';
 import { SocketContext } from '../contexts/socket.context';
+import { useLanguage } from '../contexts/language.context';
 import VsBotGameController from '../controllers/vs-bot-game.controller';
 
 export default function VsBotGameScreen({ navigation }) {
 
     const socket = useContext(SocketContext);
-    const [isInGame, setIsInGame] = useState(false);
+    const { language, t } = useLanguage();
 
     return (
         <View style={styles.container}>
             {!socket ? (
                 <View style={styles.errorContainer}>
                     <Text style={styles.paragraph}>
-                        Pas de connexion avec le serveur...
+                        {t('noConnectionTitle')}
                     </Text>
                     <Text style={styles.footnote}>
-                        Redémarrez l'application et attendez que le serveur soit de nouveau en ligne.
+                        {t('noConnectionSubtext')}
                     </Text>
                 </View>
             ) : (
                 <VsBotGameController 
                     navigation={navigation} 
-                    language="FR" 
-                    onGameStateChange={setIsInGame}
+                    language={language} 
+                    onGameStateChange={undefined}
                 />
             )}
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#2C1810",
-    },
-    errorContainer: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    paragraph: {
-        fontSize: 16,
-        marginBottom: 10,
-        color: '#FFD700',
-    },
-    footnote: {
-        fontSize: 14,
-        fontStyle: "italic",
-        marginBottom: 20,
-    },
-});
