@@ -228,6 +228,10 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
                         socket.emit('vsbot.new', { pseudo: user?.pseudo });
                         setResumeModalVisible(false);
                     }}
+                    onGoHome={() => {
+                        setResumeModalVisible(false);
+                        navigation.navigate('HomeScreen');
+                    }}
                 />
             </View>
         );
@@ -332,6 +336,10 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
                     console.log('[emit][vsbot.new]:', user?.pseudo);
                     socket.emit('vsbot.new', { pseudo: user?.pseudo });
                     setResumeModalVisible(false);
+                }}
+                onGoHome={() => {
+                    setResumeModalVisible(false);
+                    navigation.navigate('HomeScreen');
                 }}
             />
         </View>

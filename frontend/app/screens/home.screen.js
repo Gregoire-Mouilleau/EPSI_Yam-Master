@@ -148,7 +148,7 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.buttonsContainer}>
           <GameButton
-            icon="🎮"
+            iconImage={require('../../assets/logo.png')}
             title={texts.playOnline}
             onPress={() => {
               if (!user) {
@@ -163,7 +163,7 @@ export default function HomeScreen({ navigation }) {
           />
           
           <GameButton
-            icon="🤖"
+            iconImage={require('../../assets/mascotte.png')}
             title={texts.playVsBot}
             onPress={() => {
               if (!user) {

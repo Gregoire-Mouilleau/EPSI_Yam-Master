@@ -1,7 +1,7 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet, Platform } from "react-native";
+import { TouchableOpacity, Text, Image, StyleSheet, Platform, Animated } from "react-native";
 
-export default function GameButton({ title, icon, onPress, isHovered, onHoverIn, onHoverOut }) {
+export default function GameButton({ title, icon, iconImage, onPress, isHovered, onHoverIn, onHoverOut }) {
   return (
     <TouchableOpacity
       style={[styles.button, isHovered && styles.buttonHovered]}
@@ -10,9 +10,17 @@ export default function GameButton({ title, icon, onPress, isHovered, onHoverIn,
       onMouseLeave={Platform.OS === 'web' ? onHoverOut : undefined}
       activeOpacity={0.8}
     >
-      <Text style={[styles.buttonIcon, isHovered && styles.buttonIconHovered]}>
-        {icon}
-      </Text>
+      {iconImage ? (
+        <Image
+          source={iconImage}
+          style={[styles.buttonIconImage, isHovered && styles.buttonIconImageHovered]}
+          resizeMode="contain"
+        />
+      ) : (
+        <Text style={[styles.buttonIcon, isHovered && styles.buttonIconHovered]}>
+          {icon}
+        </Text>
+      )}
       <Text style={[styles.buttonText, isHovered && styles.buttonTextHovered]}>
         {title}
       </Text>
@@ -66,6 +74,14 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.3 }, { rotate: '15deg' }],
     textShadowColor: 'rgba(139, 0, 0, 0.8)',
     textShadowRadius: 10,
+  },
+  buttonIconImage: {
+    width: 48,
+    height: 48,
+    marginRight: 15,
+  },
+  buttonIconImageHovered: {
+    transform: [{ scale: 1.3 }, { rotate: '15deg' }],
   },
   buttonText: {
     fontSize: 20,

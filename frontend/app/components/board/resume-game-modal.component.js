@@ -1,6 +1,7 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useLanguage } from '../../contexts/language.context';
+import FloatingDice from '../FloatingDice';
 
 export default function ResumeGameModal({ 
     visible, 
@@ -8,6 +9,7 @@ export default function ResumeGameModal({
     currentTurn,
     onResume,
     onNewGame,
+    onGoHome,
     errorMessage
 }) {
     const { t } = useLanguage();
@@ -16,16 +18,17 @@ export default function ResumeGameModal({
         if (errorMessage) {
             return (
                 <>
-                    <Text style={styles.icon}>❌</Text>
+                    <Text style={styles.errorIcon}>❌</Text>
                     <Text style={styles.title}>{t('resumeError')}</Text>
                     <Text style={styles.message}>{errorMessage}</Text>
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={onNewGame}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.buttonText}>{t('resumeOk')}</Text>
+                    <TouchableOpacity style={[styles.actionButton, styles.newGameButton]} onPress={onNewGame} activeOpacity={0.8}>
+                        <Text style={styles.actionButtonText}>{t('resumeOk')}</Text>
                     </TouchableOpacity>
+                    {onGoHome && (
+                        <TouchableOpacity style={styles.homeLink} onPress={onGoHome} activeOpacity={0.7}>
+                            <Text style={styles.homeLinkText}>{t('resumeGoHome')}</Text>
+                        </TouchableOpacity>
+                    )}
                 </>
             );
         }
@@ -35,54 +38,60 @@ export default function ResumeGameModal({
         
         return (
             <>
-                <Text style={styles.icon}>💾</Text>
+                {/* Header icon */}
+                <View style={styles.iconWrapper}>
+                    <Text style={styles.icon}>💾</Text>
+                </View>
+
                 <Text style={styles.title}>{t('resumeTitle')}</Text>
-                <Text style={styles.message}>
-                    {t('resumeMessage')}
-                </Text>
-                
-                <View style={styles.infoContainer}>
+                <Text style={styles.message}>{t('resumeMessage')}</Text>
+
+                {/* Info card */}
+                <View style={styles.infoCard}>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>{t('resumeSavedAt')}</Text>
                         <Text style={styles.infoValue}>{savedDate.toLocaleString('fr-FR')}</Text>
                     </View>
+                    <View style={styles.infoDivider} />
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>{t('resumeState')}</Text>
-                        <Text style={styles.infoValue}>{currentTurnText}</Text>
+                        <Text style={[styles.infoValue, styles.infoValueHighlight]}>{currentTurnText}</Text>
                     </View>
                 </View>
-                
+
                 <Text style={styles.question}>{t('resumeQuestion')}</Text>
-                
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        style={[styles.button, styles.resumeButton]}
-                        onPress={onResume}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.buttonText}>{t('resumeButton')}</Text>
+
+                {/* Main action buttons */}
+                <View style={styles.buttonRow}>
+                    <TouchableOpacity style={[styles.actionButton, styles.resumeButton]} onPress={onResume} activeOpacity={0.8}>
+                        <Text style={styles.actionButtonText}>{t('resumeButton')}</Text>
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                        style={[styles.button, styles.newGameButton]}
-                        onPress={onNewGame}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.buttonText}>{t('resumeNewGame')}</Text>
+                    <TouchableOpacity style={[styles.actionButton, styles.newGameButton]} onPress={onNewGame} activeOpacity={0.8}>
+                        <Text style={styles.actionButtonText}>{t('resumeNewGame')}</Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Go home link */}
+                {onGoHome && (
+                    <TouchableOpacity style={styles.homeLink} onPress={onGoHome} activeOpacity={0.7}>
+                        <Text style={styles.homeLinkText}>{t('resumeGoHome')}</Text>
+                    </TouchableOpacity>
+                )}
             </>
         );
     };
     
     return (
-        <Modal
-            visible={visible}
-            transparent={true}
-            animationType="fade"
-        >
+        <Modal visible={visible} transparent={true} animationType="fade">
             <View style={styles.overlay}>
-                <View style={styles.modalContainer}>
+                {/* Fond identique au Background.js */}
+                <View style={styles.bgPattern} />
+                <View style={styles.bgGradient} />
+                <View style={styles.diceLayer}>
+                    <FloatingDice />
+                </View>
+
+                <View style={styles.card}>
                     {getContent()}
                 </View>
             </View>
@@ -93,91 +102,172 @@ export default function ResumeGameModal({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backgroundColor: '#0a0a0a',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    modalContainer: {
-        backgroundColor: '#1a1a2e',
-        borderRadius: 20,
-        padding: 30,
-        width: '85%',
-        maxWidth: 400,
+    bgPattern: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundImage: Platform.OS === 'web'
+            ? 'repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(139, 0, 0, 0.1) 35px, rgba(139, 0, 0, 0.1) 70px), repeating-linear-gradient(-45deg, transparent, transparent 35px, rgba(255, 215, 0, 0.05) 35px, rgba(255, 215, 0, 0.05) 70px)'
+            : undefined,
+    },
+    bgGradient: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundImage: Platform.OS === 'web'
+            ? 'radial-gradient(ellipse at top, rgba(139, 0, 0, 0.4) 0%, transparent 60%), radial-gradient(ellipse at bottom, rgba(255, 215, 0, 0.2) 0%, transparent 60%), linear-gradient(180deg, rgba(10,10,10,0.8) 0%, rgba(139,0,0,0.3) 50%, rgba(0,0,0,0.9) 100%)'
+            : undefined,
+    },
+    diceLayer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflow: 'hidden',
+    },
+    card: {
+        backgroundColor: 'rgba(15, 5, 5, 0.95)',
+        borderRadius: 24,
+        padding: 32,
+        width: '88%',
+        maxWidth: 440,
         alignItems: 'center',
         borderWidth: 3,
         borderColor: '#FFD700',
         shadowColor: '#FFD700',
         shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 30,
+        elevation: 20,
+    },
+    iconWrapper: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(220, 20, 60, 0.2)',
+        borderWidth: 2,
+        borderColor: '#DC143C',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 18,
+        shadowColor: '#DC143C',
+        shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.5,
-        shadowRadius: 20,
-        elevation: 10,
+        shadowRadius: 15,
     },
     icon: {
-        fontSize: 64,
-        marginBottom: 20,
+        fontSize: 40,
+    },
+    errorIcon: {
+        fontSize: 56,
+        marginBottom: 16,
     },
     title: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: 'bold',
         color: '#FFD700',
-        marginBottom: 15,
+        marginBottom: 10,
         textAlign: 'center',
+        textShadowColor: 'rgba(255, 215, 0, 0.4)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 10,
+        letterSpacing: 1,
     },
     message: {
-        fontSize: 16,
-        color: '#FFFFFF',
+        fontSize: 15,
+        color: '#CCCCCC',
         textAlign: 'center',
-        marginBottom: 20,
-        lineHeight: 24,
+        marginBottom: 22,
+        lineHeight: 22,
     },
-    infoContainer: {
-        backgroundColor: 'rgba(255, 215, 0, 0.1)',
-        borderRadius: 15,
-        padding: 20,
-        marginVertical: 20,
+    infoCard: {
+        backgroundColor: 'rgba(220, 20, 60, 0.08)',
+        borderRadius: 14,
+        padding: 18,
+        marginBottom: 20,
         width: '100%',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 215, 0, 0.25)',
     },
     infoRow: {
-        marginBottom: 12,
+        paddingVertical: 4,
+    },
+    infoDivider: {
+        height: 1,
+        backgroundColor: 'rgba(255, 215, 0, 0.15)',
+        marginVertical: 10,
     },
     infoLabel: {
-        fontSize: 14,
-        color: '#CCCCCC',
-        marginBottom: 4,
+        fontSize: 13,
+        color: '#999999',
+        marginBottom: 3,
     },
     infoValue: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: 'bold',
+        color: '#FFFFFF',
+    },
+    infoValueHighlight: {
         color: '#FFD700',
     },
     question: {
-        fontSize: 16,
+        fontSize: 15,
         color: '#FFFFFF',
         textAlign: 'center',
         marginBottom: 20,
         fontWeight: '600',
     },
-    buttonContainer: {
+    buttonRow: {
         flexDirection: 'row',
         gap: 12,
         width: '100%',
+        marginBottom: 16,
     },
-    button: {
+    actionButton: {
         flex: 1,
-        paddingVertical: 15,
-        borderRadius: 12,
+        paddingVertical: 14,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+    },
+    resumeButton: {
+        backgroundColor: '#DC143C',
+        borderColor: '#FF4444',
+        shadowColor: '#DC143C',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    newGameButton: {
+        backgroundColor: 'transparent',
+        borderColor: '#FFD700',
+    },
+    actionButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: 'bold',
+        letterSpacing: 0.5,
+    },
+    homeLink: {
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        marginTop: 4,
+        width: '100%',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    resumeButton: {
-        backgroundColor: '#4CAF50',
-    },
-    newGameButton: {
-        backgroundColor: '#2196F3',
-    },
-    buttonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: 'bold',
+    homeLinkText: {
+        color: '#CCCCCC',
+        fontSize: 15,
+        fontWeight: '600',
+        textAlign: 'center',
     },
 });
