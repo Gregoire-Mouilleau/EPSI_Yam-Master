@@ -336,21 +336,30 @@ const playBotTurn = (gameIndex) => {
         const strategy = BotService.determineStrategy(grid, 'player:2', 'player:1');
         
         // Détecter les types de combos
-        const hasYam = usableChoices.some(c => c.id === 'yam' || c.id.startsWith('yam'));
+        const hasYam  = usableChoices.some(c => c.id === 'yam'  || c.id.startsWith('yam'));
         const hasCarre = usableChoices.some(c => c.id === 'carre' || c.id.startsWith('carre'));
         const hasSuite = usableChoices.some(c => c.id === 'suite' || c.id.startsWith('suite'));
-        const hasFull = usableChoices.some(c => c.id === 'full' || c.id.startsWith('full'));
-        
+        const hasFull  = usableChoices.some(c => c.id === 'full'  || c.id.startsWith('full'));
+        const hasSec   = usableChoices.some(c => c.id === 'sec');
+        const hasMoinsHuit = usableChoices.some(c => c.id === 'moinshuit');
+
         // Évaluer si la combo a une importance stratégique critique
         const choicesWithScores = usableChoices.map(choice => {
           const possibleCells = BotService.decision.findCellsForChoice(grid, choice.id, 'player:2', 'player:1', strategy);
           const bestScore = possibleCells.length > 0 ? Math.max(...possibleCells.map(c => c.score)) : 0;
           return { choice, bestScore };
         });
-        const hasCriticalMove = choicesWithScores.some(c => c.bestScore > 4000); // Coup gagnant ou blocage critique
-        
+        const hasCriticalMove = choicesWithScores.some(c => c.bestScore > 4000);
+
+        // SEC / DÉFI / ≤8 : évaluer si la case visée est sur une ligne gagnante
+        const secScore = hasSec ? (choicesWithScores.find(c => c.choice.id === 'sec')?.bestScore ?? 0) : 0;
+        const moinsHuitScore = hasMoinsHuit ? (choicesWithScores.find(c => c.choice.id === 'moinshuit')?.bestScore ?? 0) : 0;
+        // On considère SEC/≤8 stratégique si la case vaut ≥ 1500 pts (sur une ligne avancée)
+        const hasStrategicSec = hasSec && secScore >= 1500;
+        const hasStrategicMH = hasMoinsHuit && moinsHuitScore >= 1500;
+
         let shouldStop = false;
-        
+
         // YAM : Toujours s'arrêter (combo ultime)
         if (hasYam) {
           shouldStop = true;
@@ -369,6 +378,11 @@ const playBotTurn = (gameIndex) => {
             console.log('[BOT] CARRÉ mais continue pour tenter le YAM');
           }
         }
+        // SEC : on ne peut PAS re-lancer et garder sec - si la case est stratégique, on s'arrête obligatoirement
+        else if (hasSec && (hasCriticalMove || hasStrategicSec || currentRoll >= rollsMax)) {
+          shouldStop = true;
+          console.log('[BOT] 🔒 SEC obtenu - arrêt (stratégique:', hasStrategicSec, '/ critique:', hasCriticalMove, '/ score:', secScore, ')');
+        }
         // SUITE ou FULL : S'arrêter si dernier lancer OU coup critique OU probabilité
         else if (hasSuite || hasFull) {
           if (currentRoll >= rollsMax) {
@@ -378,9 +392,14 @@ const playBotTurn = (gameIndex) => {
             shouldStop = true;
             console.log('[BOT] SUITE/FULL avec coup critique - arrêt stratégique');
           } else {
-            shouldStop = Math.random() < 0.3; // 30% de chance de s'arrêter
+            shouldStop = Math.random() < 0.3;
             console.log('[BOT] SUITE/FULL -', shouldStop ? 'arrêt' : 'continue pour améliorer');
           }
+        }
+        // ≤8 : s'arrêter uniquement si la case est sur une ligne avancée
+        else if (hasStrategicMH || (hasMoinsHuit && currentRoll >= rollsMax)) {
+          shouldStop = true;
+          console.log('[BOT] ≤8 stratégique - arrêt immédiat');
         }
         
         if (shouldStop) {

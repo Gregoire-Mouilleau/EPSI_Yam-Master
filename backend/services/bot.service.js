@@ -80,6 +80,84 @@ const BotService = {
         return false;
     },
 
+    // ===== ANALYSE DES LIGNES DE VICTOIRE =====
+    // Évalue les 12 lignes possibles (5 rangées + 5 colonnes + 2 diagonales)
+    lines: {
+        getAll: (grid) => {
+            const result = [];
+            for (let r = 0; r < 5; r++)
+                result.push([0,1,2,3,4].map(c => ({ row: r, col: c, id: grid[r][c].id, owner: grid[r][c].owner })));
+            for (let c = 0; c < 5; c++)
+                result.push([0,1,2,3,4].map(r => ({ row: r, col: c, id: grid[r][c].id, owner: grid[r][c].owner })));
+            result.push([0,1,2,3,4].map(i => ({ row: i, col: i,   id: grid[i][i].id,     owner: grid[i][i].owner })));
+            result.push([0,1,2,3,4].map(i => ({ row: i, col: 4-i, id: grid[i][4-i].id,   owner: grid[i][4-i].owner })));
+            return result;
+        },
+
+        // Meilleure ligne non bloquée par l'adversaire (celle sur laquelle le bot peut gagner)
+        getBotBestLine: (grid, botKey, playerKey) => {
+            const all = BotService.lines.getAll(grid);
+            let best = null, bestScore = -Infinity;
+            for (const cells of all) {
+                const mine   = cells.filter(c => c.owner === botKey);
+                const theirs = cells.filter(c => c.owner === playerKey);
+                const empty  = cells.filter(c => c.owner === null);
+                if (theirs.length > 0) continue; // bloquée par l'adversaire
+                const score = mine.length * 1000 - empty.length * 100;
+                if (score > bestScore) { bestScore = score; best = { cells, botCount: mine.length, remaining: empty, score }; }
+            }
+            return best;
+        },
+
+        // Ligne la plus avancée de l'adversaire non bloquée par le bot
+        getOpponentBestLine: (grid, botKey, playerKey) => {
+            const all = BotService.lines.getAll(grid);
+            let best = null, bestScore = -Infinity;
+            for (const cells of all) {
+                const mine   = cells.filter(c => c.owner === playerKey); // pions adversaire
+                const theirs = cells.filter(c => c.owner === botKey);    // pions bot (bloquants)
+                const empty  = cells.filter(c => c.owner === null);
+                if (theirs.length > 0) continue; // notre bot bloque déjà
+                if (mine.length === 0) continue;
+                const score = mine.length * 1000 - empty.length * 100;
+                if (score > bestScore) { bestScore = score; best = { cells, playerCount: mine.length, remaining: empty, score }; }
+            }
+            return best;
+        },
+
+        // Ensemble des IDs de combos nécessaires pour compléter les cases vides d'une ligne
+        getNeededComboIds: (remainingCells) => new Set(remainingCells.map(c => c.id)),
+    },
+
+    // Compte les jetons du bot posés sur la grille
+    countBotTokens: (grid, botKey) => {
+        let count = 0;
+        for (let r = 0; r < 5; r++)
+            for (let c = 0; c < 5; c++)
+                if (grid[r][c].owner === botKey) count++;
+        return count;
+    },
+
+    // Valeur intrinsèque d'un combo (rareté / difficulté)
+    // Empêche le bot de préférer un brelan de 1 à un Full ou un Carré
+    getComboIntrinsicValue: (comboId) => {
+        if (comboId === 'yam')       return 1500;
+        if (comboId === 'carre')     return 1200;
+        if (comboId === 'full')      return 1000;
+        if (comboId === 'suite')     return 900;
+        // SEC : obtenu sans re-lancer = rare, on ne peut pas le retrouver après re-lancer
+        if (comboId === 'sec')       return 850;
+        // ≤8 : combo spécial valeur correcte
+        if (comboId === 'moinshuit') return 600;
+        if (comboId.startsWith('brelan')) {
+            const val = parseInt(comboId.replace('brelan', ''));
+            return !isNaN(val) ? 100 + val * 30 : 250; // brelan1=130 → brelan6=280
+        }
+        const pts = parseInt(comboId);
+        if (!isNaN(pts) && pts >= 1 && pts <= 6) return pts * 40; // 1=40 → 6=240
+        return 50;
+    },
+
     // Analyse les menaces d'un joueur (lignes de 3, 4, etc.)
     analysis: {
         countPlayerThreats: (grid, playerKey) => {
@@ -240,30 +318,64 @@ const BotService = {
     // Décide quelle combinaison de dés choisir
     chooseCombo: (availableChoices, grid, botKey, playerKey, strategy) => {
         if (availableChoices.length === 0) return null;
-        
-        // Filtrer les choix non disabled
         const usableChoices = availableChoices.filter(choice => !choice.disabled);
         if (usableChoices.length === 0) return null;
 
-        // Pour chaque choix, évaluer quelle case on pourrait prendre
+        const botTokenCount = BotService.countBotTokens(grid, botKey);
+        const botLine = BotService.lines.getBotBestLine(grid, botKey, playerKey);
+        const opLine  = BotService.lines.getOpponentBestLine(grid, botKey, playerKey);
+
+        // Combos nécessaires pour la ligne gagnante du bot (actifs dès 2 pions posés)
+        const neededForWin = (botTokenCount >= 2 && botLine)
+            ? BotService.lines.getNeededComboIds(botLine.remaining) : new Set();
+
+        // Combos nécessaires pour bloquer la ligne adverse (actifs dès 2 pions adverses)
+        const neededForBlock = (opLine && opLine.playerCount >= 2)
+            ? BotService.lines.getNeededComboIds(opLine.remaining) : new Set();
+
         const choicesWithEval = usableChoices.map(choice => {
             const possibleCells = BotService.decision.findCellsForChoice(grid, choice.id, botKey, playerKey, strategy);
-            return {
-                choice,
-                possibleCells,
-                bestCellScore: possibleCells.length > 0 ? Math.max(...possibleCells.map(c => c.score)) : 0
-            };
+            const bestCellScore = possibleCells.length > 0 ? Math.max(...possibleCells.map(c => c.score)) : 0;
+
+            // Valeur du combo en lui-même (empêche full < brelan1)
+            const intrinsicBonus = BotService.getComboIntrinsicValue(choice.id);
+
+            // Bonus ligne offensive : on reste sur la ligne choisie
+            let lineBonus = 0;
+            if (botTokenCount >= 2 && botLine && neededForWin.has(choice.id)) {
+                lineBonus += 2000 + botLine.botCount * 500; // Urgence croissante avec l'avancement
+            }
+
+            // Bonus blocage : adversaire à 2, 3 ou 4 pions sur sa ligne (urgence croissante)
+            if (opLine && neededForBlock.has(choice.id)) {
+                if (opLine.playerCount >= 4) lineBonus += 8000;
+                else if (opLine.playerCount >= 3) lineBonus += 3000;
+                else lineBonus += 800; // surveillance légère (2 pions adverses)
+            }
+
+            // Bonus compound : ce combo est utile à 2+ lignes bot actives simultanément
+            if (botTokenCount >= 1) {
+                const allBotLines = BotService.lines.getAll(grid).filter(line =>
+                    !line.some(c => c.owner === playerKey) &&
+                    line.some(c => c.owner === botKey)
+                );
+                const linesNeedingThis = allBotLines.filter(line =>
+                    BotService.lines.getNeededComboIds(line.filter(c => c.owner === null)).has(choice.id)
+                );
+                if (linesNeedingThis.length >= 2) lineBonus += linesNeedingThis.length * 900;
+            }
+
+            return { choice, possibleCells, bestCellScore: bestCellScore + intrinsicBonus + lineBonus };
         });
 
-        // Trier par score de la meilleure case possible
         choicesWithEval.sort((a, b) => b.bestCellScore - a.bestCellScore);
-        
-        // Stratégie : choisir le meilleur choix avec un peu d'aléatoire (70% meilleur, 30% top 3)
+
+        // 70% meilleur coup, 30% top-3 (petite variabilité)
         if (Math.random() < 0.7 || choicesWithEval.length === 1) {
             return choicesWithEval[0].choice;
         } else {
-            const topChoices = choicesWithEval.slice(0, Math.min(3, choicesWithEval.length));
-            return topChoices[Math.floor(Math.random() * topChoices.length)].choice;
+            const top = choicesWithEval.slice(0, Math.min(3, choicesWithEval.length));
+            return top[Math.floor(Math.random() * top.length)].choice;
         }
     },
 
@@ -287,39 +399,66 @@ const BotService = {
 
         evaluateCell: (grid, row, col, botKey, playerKey, strategy) => {
             let score = 0;
-            
-            // 1. Vérifier si c'est un coup gagnant (priorité maximale)
+
+            // 1. Coup gagnant immédiat (priorité absolue)
             const testGrid = JSON.parse(JSON.stringify(grid));
             testGrid[row][col].owner = botKey;
-            if (BotService.analysis.checkLineOf5At(testGrid, row, col, botKey)) {
-                return 10000; // Coup gagnant !
-            }
-            
-            // 2. Vérifier si ça bloque un coup gagnant de l'adversaire
+            if (BotService.analysis.checkLineOf5At(testGrid, row, col, botKey)) return 10000;
+
+            // 2. Bloquer une victoire immédiate de l'adversaire
             const testGrid2 = JSON.parse(JSON.stringify(grid));
             testGrid2[row][col].owner = playerKey;
-            if (BotService.analysis.checkLineOf5At(testGrid2, row, col, playerKey)) {
-                score += 5000; // Bloquer une victoire adverse
+            if (BotService.analysis.checkLineOf5At(testGrid2, row, col, playerKey)) score += 5000;
+
+            // 3. Bonus si la case est sur la ligne gagnante du bot (dès 2 pions posés)
+            const botTokenCount = BotService.countBotTokens(grid, botKey);
+            if (botTokenCount >= 2) {
+                const botLine = BotService.lines.getBotBestLine(grid, botKey, playerKey);
+                if (botLine && botLine.cells.some(c => c.row === row && c.col === col)) {
+                    score += 2000 + botLine.botCount * 300;
+                }
+
+                // Bonus si la case bloque la ligne la plus avancée de l'adversaire
+                const opLine = BotService.lines.getOpponentBestLine(grid, botKey, playerKey);
+                if (opLine && opLine.playerCount >= 2 &&
+                    opLine.cells.some(c => c.row === row && c.col === col)) {
+                    score += opLine.playerCount >= 4 ? 4500 : opLine.playerCount >= 3 ? 3000 : 1000;
+                }
+
+                // Fork: la case touche 2+ lignes bot non bloquées → menace double impossible à contrer
+                const allLines = BotService.lines.getAll(grid);
+                const botLinesThrough = allLines.filter(line =>
+                    line.some(c => c.row === row && c.col === col) &&
+                    !line.some(c => c.owner === playerKey) &&
+                    line.some(c => c.owner === botKey)
+                );
+                if (botLinesThrough.length >= 2) score += botLinesThrough.length * 600;
+
+                // Anti-fork adverse : la case est à l'intersection de 2+ lignes adverses actives (≥2 pions)
+                const opLinesThrough = allLines.filter(line =>
+                    line.some(c => c.row === row && c.col === col) &&
+                    !line.some(c => c.owner === botKey) &&
+                    line.filter(c => c.owner === playerKey).length >= 2
+                );
+                if (opLinesThrough.length >= 2) score += opLinesThrough.length * 500;
             }
-            
-            // 3. Évaluer le potentiel de la case pour créer des lignes
+
+            // 4. Potentiel général de la case (contribue à plusieurs lignes)
             const potential = BotService.analysis.evaluateCellPotential(grid, row, col, botKey);
             score += potential * 100;
-            
-            // 4. Favoriser le centre de la grille (positions stratégiques)
+
+            // 5. Favoriser le centre
             const centerDistance = Math.abs(row - 2) + Math.abs(col - 2);
             score += (4 - centerDistance) * 10;
-            
-            // 5. Ajuster selon la stratégie
+
+            // 6. Ajustement selon la stratégie héritée
             if (strategy === 'aggressive') {
-                // Favoriser les cases qui créent des menaces multiples
                 score += potential * 50;
             } else if (strategy === 'defensive') {
-                // Favoriser les cases qui bloquent l'adversaire
                 const opponentPotential = BotService.analysis.evaluateCellPotential(grid, row, col, playerKey);
                 score += opponentPotential * 150;
             }
-            
+
             return score;
         },
 
@@ -346,7 +485,6 @@ const BotService = {
         // Si c'est le dernier roll, ne rien retourner (sera géré différemment)
         if (rollsCounter > 3) return [];
         
-        console.log('[BOT decideDicesToLock] Lancer', rollsCounter, 'Valeurs:', dices.map(d => `${d.id}=${d.value}`));
         
         // Analyser les dés pour voir quels patterns on a
         const counts = Array(7).fill(0);
@@ -364,42 +502,37 @@ const BotService = {
             }
         }
         
-        console.log('[BOT] Pattern détecté:', maxCount, 'x', maxValue, '| Fréquences:', counts);
         
+        // Nombre de lancers restants cette manche
+        const rollsRemaining = Math.max(0, 3 - rollsCounter);
+
         // Vérifier si on a des combinaisons utilisables dans la grille
         const usableChoices = availableChoices.filter(c => !c.disabled);
-        console.log('[BOT] Combinaisons utilisables:', usableChoices.map(c => c.id));
         
         // Si AUCUNE combo utilisable dans la grille, garder quand même les doublons/patterns
         if (usableChoices.length === 0) {
-            console.log('[BOT] Aucune combo utilisable dans la grille');
             
             // YAM (5 identiques) - Garder malgré tout
             if (maxCount === 5) {
-                console.log('[BOT] ⭐ YAM détecté (5x', maxValue, ') - conserve malgré grille pleine');
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
             
             // CARRÉ (4 identiques) - Garder malgré tout
             if (maxCount >= 4) {
-                console.log('[BOT] ⭐ CARRÉ détecté (4x', maxValue, ') - conserve malgré grille pleine');
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
             
             // BRELAN (3 identiques) - Garder malgré tout
             if (maxCount >= 3) {
-                console.log('[BOT] ⭐ BRELAN détecté (3x', maxValue, ') - conserve malgré grille pleine');
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
             
             // PAIRE (2 identiques) - Garder pour anticiper
             if (maxCount === 2) {
-                console.log('[BOT] ⭐ PAIRE détectée (2x', maxValue, ') - conserve pour anticiper');
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
             
             // Vraiment rien d'intéressant - tout relancer
-            console.log('[BOT] ❌ Aucun doublon - relance tous les dés');
             return [];
         }
         
@@ -414,12 +547,10 @@ const BotService = {
                 }
             }
         }
-        console.log('[BOT] Jetons posés:', botTokensCount);
         
         // Vérifier si au moins 2 jetons sont alignés (horizontal, vertical, diagonal)
         const hasAlignedTokens = BotService.checkAlignedTokens(botTokenPositions);
         if (hasAlignedTokens) {
-            console.log('[BOT] ⚡ Jetons alignés détectés !');
         }
         
         // STRATÉGIE DE JEU : Évaluer les coups critiques
@@ -434,67 +565,127 @@ const BotService = {
         // PRIORITÉ 1 : COUPS GAGNANTS (score > 9000)
         const winningChoice = choicesWithScores.find(c => c.bestScore > 9000);
         if (winningChoice) {
-            console.log('[BOT] 🏆 COUP GAGNANT avec', winningChoice.choice.id);
             return BotService.getDicesForCombo(dices, winningChoice.choice.id, counts);
         }
         
         // PRIORITÉ 2 : BLOCAGE CRITIQUE (score > 4000)
         const blockingChoice = choicesWithScores.find(c => c.bestScore > 4000);
         if (blockingChoice) {
-            console.log('[BOT] 🛡️ BLOCAGE CRITIQUE avec', blockingChoice.choice.id);
             return BotService.getDicesForCombo(dices, blockingChoice.choice.id, counts);
         }
         
-        // PRIORITÉ 3 : MODE STRATÉGIQUE (après 3 jetons OU 2+ jetons alignés)
-        const shouldUseStrategy = (botTokensCount >= 3) || (botTokensCount >= 2 && hasAlignedTokens);
-        
-        if (shouldUseStrategy) {
-            console.log('[BOT] 🎯 MODE STRATÉGIQUE - Analyser les meilleures opportunités');
-            
-            // Prendre les 5 meilleurs choix stratégiques (non gagnants/bloquants mais à bon score)
-            const strategicChoices = choicesWithScores.filter(c => c.bestScore > 0 && c.bestScore < 4000).slice(0, 5);
-            
-            if (strategicChoices.length > 0) {
-                console.log('[BOT] Choix stratégiques:', strategicChoices.map(c => `${c.choice.id}(${c.bestScore})`).join(', '));
-                
-                // Évaluer la "proximité" de chaque figure avec les dés actuels
-                const proximityScores = strategicChoices.map(sc => {
-                    const proximity = BotService.evaluateComboProximity(dices, sc.choice.id, counts);
-                    return { 
-                        choice: sc.choice, 
-                        strategicScore: sc.bestScore, 
-                        proximity: proximity,
-                        totalScore: sc.bestScore * 0.6 + proximity * 400 // Pondération : stratégie 60% + proximité 40%
-                    };
-                });
-                
-                // Trier par score total (stratégie + proximité)
-                proximityScores.sort((a, b) => b.totalScore - a.totalScore);
-                
-                console.log('[BOT] Scores totaux:', proximityScores.map(p => 
-                    `${p.choice.id}(strat:${p.strategicScore}, prox:${p.proximity}, total:${Math.round(p.totalScore)})`
-                ).join(', '));
-                
-                // Prendre la meilleure option et essayer de construire cette figure
-                const bestStrategic = proximityScores[0];
-                if (bestStrategic.proximity > 0) {
-                    console.log('[BOT] 🎯 Cibler', bestStrategic.choice.id, '- Proximité:', bestStrategic.proximity);
-                    const dicesToKeep = BotService.getDicesForTargetCombo(dices, bestStrategic.choice.id, counts);
-                    if (dicesToKeep.length > 0) {
-                        return dicesToKeep;
+        // PRIORITÉ 3 : ENGAGEMENT SUR LA LIGNE (dès 2 pions posés)
+        if (botTokensCount >= 2) {
+            const botLine = BotService.lines.getBotBestLine(grid, botKey, playerKey);
+            const opLine  = BotService.lines.getOpponentBestLine(grid, botKey, playerKey);
+
+            // 3a. BLOCAGE URGENT : l'adversaire a 3+ pions sur sa ligne
+            if (opLine && opLine.playerCount >= 3) {
+                const blockNeeded = BotService.lines.getNeededComboIds(opLine.remaining);
+                const proxList = usableChoices
+                    .filter(c => blockNeeded.has(c.id))
+                    .map(c => ({
+                        choice: c,
+                        proximity: BotService.evaluateComboProximity(dices, c.id, counts),
+                        successProb: BotService.estimateSuccessProbability(c.id, counts, rollsRemaining)
+                    }))
+                    .sort((a, b) => (b.proximity * 10 + b.successProb) - (a.proximity * 10 + a.successProb));
+
+                if (proxList.length > 0) {
+                    const best = proxList[0];
+                    const kept = BotService.getDicesForTargetCombo(dices, best.choice.id, counts);
+                    if (kept.length > 0) {
+                        return kept;
+                    }
+                    return [];
+                }
+                return [];
+            }
+
+            // 3a'. SURVEILLANCE : l'adversaire a 2 pions (bloquer si coût faible et bot pas déjà avancé)
+            if (opLine && opLine.playerCount === 2) {
+                const botIsAdvanced = botLine && botLine.botCount >= 3;
+                if (!botIsAdvanced) {
+                    const blockNeeded = BotService.lines.getNeededComboIds(opLine.remaining);
+                    const proxList = usableChoices
+                        .filter(c => blockNeeded.has(c.id))
+                        .map(c => ({
+                            choice: c,
+                            proximity: BotService.evaluateComboProximity(dices, c.id, counts),
+                            successProb: BotService.estimateSuccessProbability(c.id, counts, rollsRemaining)
+                        }))
+                        .filter(c => c.proximity >= 5) // seulement si déjà bien aligné
+                        .sort((a, b) => (b.proximity * 10 + b.successProb) - (a.proximity * 10 + a.successProb));
+
+                    if (proxList.length > 0) {
+                        const best = proxList[0];
+                        const kept = BotService.getDicesForTargetCombo(dices, best.choice.id, counts);
+                        if (kept.length > 0) {
+                            return kept;
+                        }
                     }
                 }
+                // Surveillance non déclenchée → continuer vers l'offensive
             }
+
+            // 3b. OFFENSIVE : cibler les combos nécessaires sur toutes les lignes bot actives
+            // On essaie la meilleure ligne en premier, puis les lignes secondaires (fallback)
+            if (botLine && botLine.remaining.length > 0) {
+                const allActiveBotLines = BotService.lines.getAll(grid)
+                    .map(line => {
+                        const mine = line.filter(c => c.owner === botKey);
+                        const theirs = line.filter(c => c.owner === playerKey);
+                        const remaining = line.filter(c => c.owner === null);
+                        if (theirs.length > 0 || mine.length === 0) return null;
+                        return { botCount: mine.length, remaining, neededIds: BotService.lines.getNeededComboIds(remaining) };
+                    })
+                    .filter(Boolean)
+                    .sort((a, b) => b.botCount - a.botCount);
+
+                for (const [lineIdx, targetLine] of allActiveBotLines.entries()) {
+                    const proxList = usableChoices
+                        .filter(c => targetLine.neededIds.has(c.id))
+                        .map(c => ({
+                            choice: c,
+                            proximity: BotService.evaluateComboProximity(dices, c.id, counts),
+                            successProb: BotService.estimateSuccessProbability(c.id, counts, rollsRemaining)
+                        }))
+                        .sort((a, b) => (b.proximity * 10 + b.successProb) - (a.proximity * 10 + a.successProb));
+
+                    if (proxList.length === 0) {
+                        continue;
+                    }
+
+                    const best = proxList[0];
+
+                    // Prob trop faible sur la ligne principale → on laisse tomber en mode opportuniste
+                    if (lineIdx === 0 && best.successProb < 5 && rollsRemaining <= 1) {
+                        break;
+                    }
+
+                    // Prob trop faible sur une ligne secondaire → essayer la suivante
+                    if (lineIdx > 0 && best.successProb < 5 && rollsRemaining <= 1) {
+                        continue;
+                    }
+                    const kept = BotService.getDicesForTargetCombo(dices, best.choice.id, counts);
+                    if (kept.length > 0) {
+                        return kept;
+                    }
+                }
+
+                // Aucune ligne exploitable
+                return [];
+            }
+
+            // Toutes les lignes sont bloquées → tombons en mode opportuniste
         }
         
         // PRIORITÉ 4 : COMBOS SELON LES DÉS ACTUELS (mode opportuniste - début de partie)
-        console.log('[BOT] 🎲 MODE OPPORTUNISTE - Chercher les meilleures figures possibles');
         
         // YAM (5 identiques) - TOUJOURS garder
         if (maxCount === 5) {
             const hasYam = usableChoices.some(c => c.id === 'yam' || c.id.startsWith('yam'));
             if (hasYam) {
-                console.log('[BOT] ⭐ YAM détecté - conserve 5x', maxValue);
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
         }
@@ -503,7 +694,6 @@ const BotService = {
         if (maxCount >= 4) {
             const hasCarre = usableChoices.some(c => c.id === 'carre' || c.id.startsWith('carre'));
             if (hasCarre) {
-                console.log('[BOT] ⭐ CARRÉ détecté - conserve 4x', maxValue);
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
         }
@@ -520,7 +710,6 @@ const BotService = {
             if (pairValue > 0) {
                 const hasFull = usableChoices.some(c => c.id === 'full' || c.id.startsWith('full'));
                 if (hasFull) {
-                    console.log('[BOT] ⭐ FULL détecté - conserve 3x', maxValue, '+ 2x', pairValue);
                     return dices.filter(d => {
                         const val = parseInt(d.value);
                         return val === maxValue || val === pairValue;
@@ -533,7 +722,6 @@ const BotService = {
         if (maxCount >= 3) {
             const hasBrelan = usableChoices.some(c => c.id === 'brelan' || c.id.startsWith('brelan'));
             if (hasBrelan) {
-                console.log('[BOT] ⭐ BRELAN détecté - conserve 3x', maxValue);
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
         }
@@ -547,7 +735,6 @@ const BotService = {
         if (longestSeq.length === 5) {
             const hasSuite = usableChoices.some(c => c.id === 'suite' || c.id.startsWith('suite'));
             if (hasSuite) {
-                console.log('[BOT] ⭐ SUITE complète détectée');
                 const dicesToKeep = [];
                 const usedValues = new Set();
                 for (const dice of dices) {
@@ -565,7 +752,6 @@ const BotService = {
         if (longestSeq.length === 4) {
             const hasSuite = usableChoices.some(c => c.id === 'suite' || c.id.startsWith('suite'));
             if (hasSuite) {
-                console.log('[BOT] ⭐ Suite partielle (4) - conserve:', longestSeq);
                 const dicesToKeep = [];
                 const usedValues = new Set();
                 for (const dice of dices) {
@@ -585,7 +771,6 @@ const BotService = {
             const pairChoice = usableChoices.find(c => parseInt(c.id) === maxValue);
             
             if (pairChoice) {
-                console.log('[BOT] ⭐ PAIRE de', maxValue, 'détectée et disponible');
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
         }
@@ -597,7 +782,6 @@ const BotService = {
                 if (counts[val] >= 2) {
                     const valueChoice = usableChoices.find(c => parseInt(c.id) === val);
                     if (valueChoice) {
-                        console.log('[BOT] ⭐ Valeurs hautes:', counts[val], 'x', val);
                         return dices.filter(dice => parseInt(dice.value) === val);
                     }
                 }
@@ -605,7 +789,6 @@ const BotService = {
         }
         
         // Sinon, ne rien garder (tout relancer)
-        console.log('[BOT] ❌ Rien à garder - relance tous les dés');
         return [];
     },
 
@@ -754,6 +937,132 @@ const BotService = {
         return 0;
     },
 
+    // Coefficient binomial (helper interne)
+    _binom: (n, k) => {
+        if (k < 0 || k > n) return 0;
+        if (k === 0 || k === n) return 1;
+        let r = 1;
+        for (let i = 0; i < k; i++) r *= (n - i) / (i + 1);
+        return r;
+    },
+
+    // Estime la probabilité (0-100) d'obtenir un combo en tenant compte
+    // de l'état des dés actuels et du nombre de lancers restants
+    estimateSuccessProbability: (comboId, counts, rollsRemaining) => {
+        const r = Math.max(0, rollsRemaining);
+        // Probabilité d'obtenir au moins 'need' succès sur 'free' dés (p = 1/6)
+        const binomAtLeast = (free, need) => {
+            let prob = 0;
+            for (let k = need; k <= free; k++) {
+                prob += BotService._binom(free, k) * Math.pow(1/6, k) * Math.pow(5/6, free - k);
+            }
+            return prob;
+        };
+
+        // BRELAN spécifique (brelan1..brelan6)
+        if (comboId.startsWith('brelan')) {
+            const t = parseInt(comboId.replace('brelan', ''));
+            if (isNaN(t)) return 0;
+            const have = counts[t] || 0;
+            if (have >= 3) return 100;
+            if (r === 0) return 0;
+            const need = 3 - have;
+            const free = 5 - have;
+            const p1 = binomAtLeast(free, need);
+            if (r === 1) return Math.round(p1 * 100);
+            // 2 lancers : composition (si raté, 2e chance)
+            return Math.round(Math.min(95, (p1 + (1 - p1) * binomAtLeast(free, need)) * 100));
+        }
+
+        // CARRÉ
+        if (comboId === 'carre') {
+            let maxCount = 0;
+            for (let i = 1; i <= 6; i++) if ((counts[i] || 0) > maxCount) maxCount = counts[i];
+            if (maxCount >= 4) return 100;
+            if (r === 0) return 0;
+            const need = 4 - maxCount;
+            const free = 5 - maxCount;
+            const p1 = binomAtLeast(free, need);
+            if (r === 1) return Math.round(p1 * 100);
+            return Math.round(Math.min(90, (p1 + (1 - p1) * binomAtLeast(free, need)) * 100));
+        }
+
+        // YAM
+        if (comboId === 'yam') {
+            let maxCount = 0;
+            for (let i = 1; i <= 6; i++) if ((counts[i] || 0) > maxCount) maxCount = counts[i];
+            if (maxCount >= 5) return 100;
+            if (r === 0) return 0;
+            const need = 5 - maxCount;
+            const free = 5 - maxCount;
+            const p1 = binomAtLeast(free, need);
+            if (r === 1) return Math.round(p1 * 100);
+            return Math.round(Math.min(85, (p1 + (1 - p1) * p1) * 100));
+        }
+
+        // FULL
+        if (comboId === 'full') {
+            const sorted = counts.slice(1).sort((a, b) => b - a);
+            if (sorted[0] >= 3 && sorted[1] >= 2) return 100;
+            if (r === 0) return 0;
+            if (sorted[0] >= 3) {
+                // Brelan OK, reroll 2 dés → besoin d'une paire
+                // P(2 dés identiques) = 6*(1/6)^2 = 1/6
+                const pPair = 1 / 6;
+                if (r >= 2) return Math.round((1 - Math.pow(1 - pPair, 2)) * 100); // ≈31%
+                return Math.round(pPair * 100); // ≈17%
+            }
+            if (sorted[0] === 2 && sorted[1] === 2) {
+                // Deux paires → promouvoir une en brelan (1 dé libre = 1/6)
+                if (r >= 2) return 30;
+                return 17;
+            }
+            return r >= 2 ? 20 : 8;
+        }
+
+        // SUITE
+        if (comboId === 'suite') {
+            const vals = [];
+            for (let i = 1; i <= 6; i++) if ((counts[i] || 0) > 0) vals.push(i);
+            const seq = BotService.findLongestSequence(vals);
+            if (seq.length >= 5) return 100;
+            if (r === 0) return 0;
+            if (r === 1) {
+                if (seq.length === 4) return 30;
+                if (seq.length === 3) return 8;
+                return 2;
+            }
+            if (seq.length === 4) return 55;
+            if (seq.length === 3) return 22;
+            return 6;
+        }
+
+        // MOINSHUIT (somme ≤ 8)
+        if (comboId === 'moinshuit') {
+            let sum = 0;
+            for (let i = 1; i <= 6; i++) sum += i * (counts[i] || 0);
+            if (sum <= 8) return r >= 1 ? 90 : 100;
+            if (sum <= 13 && r >= 1) return 25;
+            if (sum <= 17 && r >= 2) return 12;
+            return 4;
+        }
+
+        // SEC : requiert de ne pas relancer → non ciblable
+        if (comboId === 'sec') return 0;
+
+        // Points (1-6) : avoir au moins un dé de cette valeur
+        const pts = parseInt(comboId);
+        if (!isNaN(pts) && pts >= 1 && pts <= 6) {
+            const have = counts[pts] || 0;
+            if (have >= 2) return 100;
+            if (have === 1) return r >= 1 ? 75 : 50;
+            if (r === 0) return 0;
+            return Math.round((1 - Math.pow(5 / 6, 5)) * 100); // ≈60%
+        }
+
+        return 50;
+    },
+
     // Retourne les dés à garder pour cibler une figure spécifique
     getDicesForTargetCombo: (dices, comboId, counts) => {
         // YAM : Garder la valeur la plus fréquente
@@ -767,7 +1076,6 @@ const BotService = {
                 }
             }
             if (maxCount >= 2) {
-                console.log('[BOT] 🎯 Cibler YAM - Garder', maxCount, 'x', maxValue);
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
         }
@@ -783,7 +1091,6 @@ const BotService = {
                 }
             }
             if (maxCount >= 2) {
-                console.log('[BOT] 🎯 Cibler CARRÉ - Garder', maxCount, 'x', maxValue);
                 return dices.filter(dice => parseInt(dice.value) === maxValue);
             }
         }
@@ -797,13 +1104,11 @@ const BotService = {
             pairs.sort((a, b) => b.count - a.count);
             
             if (pairs.length >= 2) {
-                console.log('[BOT] 🎯 Cibler FULL - Garder', pairs[0].count, 'x', pairs[0].value, '+', pairs[1].count, 'x', pairs[1].value);
                 return dices.filter(d => {
                     const val = parseInt(d.value);
                     return val === pairs[0].value || val === pairs[1].value;
                 });
             } else if (pairs.length === 1 && pairs[0].count >= 2) {
-                console.log('[BOT] 🎯 Cibler FULL - Garder', pairs[0].count, 'x', pairs[0].value);
                 return dices.filter(dice => parseInt(dice.value) === pairs[0].value);
             }
         }
@@ -814,7 +1119,6 @@ const BotService = {
             
             if (!isNaN(targetValue) && counts[targetValue] >= 1) {
                 // BRELAN spécifique
-                console.log('[BOT] 🎯 Cibler BRELAN de', targetValue, '- Garder', counts[targetValue], 'dé(s)');
                 return dices.filter(dice => parseInt(dice.value) === targetValue);
             } else {
                 // BRELAN général - garder la valeur la plus fréquente
@@ -827,7 +1131,6 @@ const BotService = {
                     }
                 }
                 if (maxCount >= 2) {
-                    console.log('[BOT] 🎯 Cibler BRELAN - Garder', maxCount, 'x', maxValue);
                     return dices.filter(dice => parseInt(dice.value) === maxValue);
                 }
             }
@@ -849,7 +1152,6 @@ const BotService = {
                         usedValues.add(val);
                     }
                 }
-                console.log('[BOT] 🎯 Cibler SUITE - Garder séquence:', longestSeq);
                 return dicesToKeep;
             }
         }
@@ -858,7 +1160,6 @@ const BotService = {
         const points = parseInt(comboId);
         if (!isNaN(points) && points >= 1 && points <= 6) {
             if (counts[points] >= 1) {
-                console.log('[BOT] 🎯 Cibler valeur', points, '- Garder', counts[points], 'dé(s)');
                 return dices.filter(dice => parseInt(dice.value) === points);
             }
         }
