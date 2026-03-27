@@ -95,7 +95,9 @@ const GameService = {
                     currentTurn: 'player:1',
                     timer: TURN_DURATION,
                     player1Score: 0,
-                    player2Score: 0,
+                    player2Score: 0,                    
+                    player1PiecesLeft: 12,
+                    player2PiecesLeft: 12,                    
                     grid: JSON.parse(JSON.stringify(GRID_INIT)),
                     choices: { ...CHOICES_INIT, availableChoices: [] },
                     deck: { 
@@ -194,7 +196,9 @@ const GameService = {
                     displayGrid: true,
                     canSelectCells: (playerKey === gameState.currentTurn) && (gameState.choices.availableChoices.length > 0),
                     playerKey: playerKey,
-                    grid: gameState.grid
+                    grid: gameState.grid,
+                    player1PiecesLeft: gameState.player1PiecesLeft,
+                    player2PiecesLeft: gameState.player2PiecesLeft
                 };
             }
         }
@@ -445,10 +449,46 @@ const GameService = {
             return lines;
         },
 
-        // Calculer le score d'un joueur basé sur ses lignes de 3
+        // Calculer le score d'un joueur basé sur ses lignes de 3 (1pt) et de 4 (2pts).
+        // Une ligne de 4 n'additionne PAS ses deux sous-lignes de 3.
+        // Une case peut appartenir à plusieurs lignes dans des directions différentes.
         calculateScore: (grid, playerKey) => {
-            const linesOf3 = GameService.grid.findLines(grid, playerKey, 3);
-            return linesOf3.length;
+            let score = 0;
+            const directions = [
+                [0, 1],   // horizontal
+                [1, 0],   // vertical
+                [1, 1],   // diagonal \
+                [1, -1],  // diagonal /
+            ];
+
+            for (const [dr, dc] of directions) {
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < 5; c++) {
+                        if (grid[r][c].owner !== playerKey) continue;
+
+                        // Vérifie si c'est le début d'un run (la case précédente n'appartient pas au joueur)
+                        const prevR = r - dr;
+                        const prevC = c - dc;
+                        const prevInBounds = prevR >= 0 && prevR < 5 && prevC >= 0 && prevC < 5;
+                        if (prevInBounds && grid[prevR][prevC].owner === playerKey) continue;
+
+                        // Compter la longueur du run
+                        let len = 0;
+                        let cr = r, cc = c;
+                        while (cr >= 0 && cr < 5 && cc >= 0 && cc < 5 && grid[cr][cc].owner === playerKey) {
+                            len++;
+                            cr += dr;
+                            cc += dc;
+                        }
+
+                        if (len === 3) score += 1;
+                        else if (len === 4) score += 2;
+                        // len === 5 : condition de victoire, déjà gérée avant d'arriver ici
+                    }
+                }
+            }
+
+            return score;
         },
 
         // Vérifier si la grille est pleine

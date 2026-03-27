@@ -11,6 +11,8 @@ const Grid = () => {
     const [canSelectCells, setCanSelectCells] = useState([]);
     const [grid, setGrid] = useState([]);
     const [playerKey, setPlayerKey] = useState(null);
+    const [player1PiecesLeft, setPlayer1PiecesLeft] = useState(12);
+    const [player2PiecesLeft, setPlayer2PiecesLeft] = useState(12);
 
     const handleSelectCell = (cellId, rowIndex, cellIndex) => {
         if (canSelectCells) {
@@ -24,6 +26,8 @@ const Grid = () => {
             setCanSelectCells(data['canSelectCells']);
             setPlayerKey(data['playerKey']);
             setGrid(data['grid']);
+            if (data['player1PiecesLeft'] !== undefined) setPlayer1PiecesLeft(data['player1PiecesLeft']);
+            if (data['player2PiecesLeft'] !== undefined) setPlayer2PiecesLeft(data['player2PiecesLeft']);
         });
 
         return () => {
@@ -49,8 +53,18 @@ const Grid = () => {
         );
     };
 
+    const myPieces = playerKey === 'player:1' ? player1PiecesLeft : player2PiecesLeft;
+    const opponentPieces = playerKey === 'player:1' ? player2PiecesLeft : player1PiecesLeft;
+
     return (
         <View style={styles.gridContainer}>
+            {displayGrid && (
+                <View style={styles.piecesRow}>
+                    <Text style={styles.piecesText}>⚫ {opponentPieces}</Text>
+                    <Text style={styles.piecesLabel}>pions restants</Text>
+                    <Text style={styles.piecesTextOwn}>🟢 {myPieces}</Text>
+                </View>
+            )}
             {displayGrid &&
                 grid.map((row, rowIndex) => (
                     <View key={rowIndex} style={styles.row}>

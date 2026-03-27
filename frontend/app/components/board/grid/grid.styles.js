@@ -51,4 +51,27 @@ export default StyleSheet.create({
     bottom: 0,
     zIndex: 2,
   },
+  piecesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
+  piecesText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#aaa',
+  },
+  piecesTextOwn: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  piecesLabel: {
+    fontSize: 10,
+    color: '#F6DEB2',
+    opacity: 0.7,
+  },
 });

@@ -621,6 +621,8 @@ const botChooseCell = (gameIndex, choiceId, strategy) => {
     games[gameIndex].gameState.grid
   );
 
+  games[gameIndex].gameState.player2PiecesLeft = Math.max(0, (games[gameIndex].gameState.player2PiecesLeft ?? 12) - 1);
+
   // Mettre à jour immédiatement pour montrer le jeton
   updateClientsViewGrid(games[gameIndex]);
 
@@ -669,8 +671,12 @@ const botChooseCell = (gameIndex, choiceId, strategy) => {
     return;
   }
 
-  // Vérifier si la grille est pleine
-  if (GameService.grid.isFull(games[gameIndex].gameState.grid)) {
+  // Vérifier si un joueur n'a plus de pions OU si la grille est pleine
+  const p1PiecesBot = games[gameIndex].gameState.player1PiecesLeft ?? 0;
+  const p2PiecesBot = games[gameIndex].gameState.player2PiecesLeft ?? 0;
+  const noPiecesLeftBot = p1PiecesBot === 0 || p2PiecesBot === 0;
+
+  if (noPiecesLeftBot || GameService.grid.isFull(games[gameIndex].gameState.grid)) {
     const player1Score = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:1');
     const player2Score = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:2');
     
@@ -1443,6 +1449,13 @@ io.on('connection', socket => {
       diceValues: games[gameIndex].gameState.deck.dices.map(d => d.value),
     });
 
+    // Décrémenter le compteur de pions du joueur actif
+    if (games[gameIndex].gameState.currentTurn === 'player:1') {
+      games[gameIndex].gameState.player1PiecesLeft = Math.max(0, (games[gameIndex].gameState.player1PiecesLeft ?? 12) - 1);
+    } else {
+      games[gameIndex].gameState.player2PiecesLeft = Math.max(0, (games[gameIndex].gameState.player2PiecesLeft ?? 12) - 1);
+    }
+
     // IMPORTANT : Mettre à jour la grille côté client IMMÉDIATEMENT
     // pour que le dernier jeton soit visible avant la fin de partie
     updateClientsViewGrid(games[gameIndex]);
@@ -1519,9 +1532,12 @@ io.on('connection', socket => {
       return;
     }
 
-    // Étape 2 : Vérifier si la grille est pleine
-    if (GameService.grid.isFull(games[gameIndex].gameState.grid)) {
-      console.log('[DEBUG] GRILLE PLEINE - Calcul des scores...');
+    // Étape 2 : Vérifier si un joueur n'a plus de pions OU si la grille est pleine
+    const p1Pieces = games[gameIndex].gameState.player1PiecesLeft ?? 0;
+    const p2Pieces = games[gameIndex].gameState.player2PiecesLeft ?? 0;
+    const noPiecesLeft = p1Pieces === 0 || p2Pieces === 0;
+
+    if (noPiecesLeft || GameService.grid.isFull(games[gameIndex].gameState.grid)) {
       
       // Calculer les scores uniquement maintenant
       games[gameIndex].gameState.player1Score = GameService.grid.calculateScore(games[gameIndex].gameState.grid, 'player:1');
