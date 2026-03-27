@@ -12,6 +12,7 @@ export default function Header({
   onHoverOut,
   onProfilePress,
   onLeaderboardPress,
+  onRulesPress,
   profileLabel = 'PROFIL',
   isAuthenticated = false,
   avatarKey = 'avatar_1',
@@ -71,8 +72,9 @@ export default function Header({
       )}
 
       {showDecorations && (
-        <Image
-          source={require('../../assets/regles.png')}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={onRulesPress}
           style={[
             styles.rulesBadge,
             {
@@ -82,9 +84,13 @@ export default function Header({
               transform: [{ translateY: -(rulesSize / 2) }],
             },
           ]}
-          resizeMode="contain"
-          pointerEvents="none"
-        />
+        >
+          <Image
+            source={require('../../assets/regles.png')}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
       )}
 
       <TouchableOpacity
@@ -133,14 +139,19 @@ export default function Header({
                 </View>
               </TouchableOpacity>
 
-              <View style={styles.menuItem}>
-                <Image
-                  source={require('../../assets/regles.png')}
-                  style={styles.menuBadgeImage}
-                  resizeMode="contain"
-                />
-                <Text style={styles.menuItemLabel}>📜 Règles du jeu</Text>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => { setMenuOpen(false); onRulesPress && onRulesPress(); }}
+              >
+                <View style={styles.menuItem}>
+                  <Image
+                    source={require('../../assets/regles.png')}
+                    style={styles.menuBadgeImage}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.menuItemLabel}>📜 Règles du jeu</Text>
+                </View>
+              </TouchableOpacity>
             </ScrollView>
           </Pressable>
         </Pressable>

@@ -135,9 +135,8 @@ export default function HomeScreen({ navigation }) {
         onHoverIn={() => setHoverProfile(true)}
         onHoverOut={() => setHoverProfile(false)}
         onProfilePress={() => navigation.navigate('ProfileScreen')}
-        onLeaderboardPress={() => {
-          navigation.navigate('LeaderboardScreen');
-        }}
+        onLeaderboardPress={() => navigation.navigate('LeaderboardScreen')}
+        onRulesPress={() => navigation.navigate('RulesScreen')}
         profileLabel={user ? user.pseudo : texts.signIn}
         isAuthenticated={!!user}
         avatarKey={user?.avatarKey}

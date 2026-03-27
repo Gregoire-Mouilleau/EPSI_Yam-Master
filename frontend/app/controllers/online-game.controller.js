@@ -315,6 +315,7 @@ export default function OnlineGameController({ navigation, language = 'FR', onGa
                     socket.emit("queue.leave");
                     navigation.navigate('HomeScreen');
                 }}
+                onRulesPress={() => navigation.navigate('RulesScreen')}
             >
                 <DisconnectionModal
                     visible={disconnectionModalVisible}

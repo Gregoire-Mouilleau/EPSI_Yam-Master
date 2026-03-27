@@ -6,7 +6,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingVertical: 34,
     paddingHorizontal: 16,
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   panel: {
     width: '100%',
     position: 'relative',
-    overflow: 'hidden',
+    overflow: 'visible',
     borderRadius: 24,
     backgroundColor: '#EFD2A0',
     borderWidth: 3.4,

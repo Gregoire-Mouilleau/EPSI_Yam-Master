@@ -177,6 +177,7 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
                 if (onGameStateChange) { onGameStateChange(false); }
                 navigation.navigate('HomeScreen');
             }}
+            onRulesPress={() => navigation.navigate('RulesScreen')}
         >
             <ResumeGameModal
                 visible={resumeModalVisible}

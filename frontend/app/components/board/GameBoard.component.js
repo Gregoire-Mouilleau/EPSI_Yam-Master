@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { View, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, ImageBackground } from 'react-native';
 import styles from './GameBoard.styles';
 import Timer from './timers/Timer.component';
 import Grid from './grid/grid.component';
@@ -25,13 +25,22 @@ export default function GameBoard({
     avatarKeyOpponent,
     onRematch,
     onReturnToMenu,
+    onRulesPress,
     children,
 }) {
     return (
         <View style={styles.gameContainer}>
             <View style={styles.gameBoard}>
                 <View style={styles.leftSection}>
-                    <Timer type="opponent" key={`opponent-timer-${gameResetKey}`} />
+                    <View style={styles.opponentRow}>
+                        {onRulesPress && (
+                            <TouchableOpacity style={styles.rulesButton} onPress={onRulesPress}>
+                                <Text style={styles.rulesButtonText}>📖 Règles</Text>
+                            </TouchableOpacity>
+                        )}
+                        <Timer type="opponent" key={`opponent-timer-${gameResetKey}`} />
+                        <View style={styles.rulesButtonPlaceholder} />
+                    </View>
                     <Grid key={`grid-${gameResetKey}`} />
                     <Choices key={`choices-${gameResetKey}`} />
                     <Timer type="player" key={`player-timer-${gameResetKey}`} />
