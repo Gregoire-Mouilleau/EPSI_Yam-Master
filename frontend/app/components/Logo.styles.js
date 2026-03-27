@@ -7,8 +7,6 @@ export default StyleSheet.create({
     marginBottom: 28,
   },
   centerLogo: {
-    width: 811,
-    height: 406,
     opacity: 0.95,
   },
 });

@@ -35,17 +35,18 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 16,
     zIndex: 10,
     minHeight: 550,
   },
   leftSection: {
     flex: 1.2,
-    minWidth: 420,
+    minWidth: 280,
   },
   rightSection: {
     flex: 1,
-    minWidth: 380,
+    minWidth: 280,
   },
   sectionHeader: {
     backgroundColor: '#6D2110',
@@ -69,7 +70,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scaleContent: {
-    width: 380,
+    width: '100%',
+    maxWidth: 380,
     height: SCALE_HEIGHT,
     position: 'relative',
     paddingLeft: 180,

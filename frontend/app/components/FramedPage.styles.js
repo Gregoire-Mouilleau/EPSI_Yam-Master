@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
   topBannerTitle: {
     color: '#FDE047',
-    fontSize: 34,
+    fontSize: 28,
     fontWeight: 'bold',
     letterSpacing: 1,
   },

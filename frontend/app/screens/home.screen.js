@@ -141,6 +141,7 @@ export default function HomeScreen({ navigation }) {
         profileLabel={user ? user.pseudo : texts.signIn}
         isAuthenticated={!!user}
         avatarKey={user?.avatarKey}
+        hideDecorations={showSettings}
       />
 
       <View style={styles.content}>

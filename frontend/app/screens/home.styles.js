@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     bottom: 20,
-    zIndex: 120,
+    zIndex: 300,
   },
   settingsEmojiTouch: {
     width: 86,
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 160,
+    zIndex: 300,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
