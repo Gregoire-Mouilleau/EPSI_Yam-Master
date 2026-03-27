@@ -53,6 +53,7 @@ export default function HistoryScreen({ navigation }) {
   };
 
   const getResultLabel = (game) => {
+    if (game.winner_id === 0) return { label: t('historyLoss'), style: styles.badgeLoss }; // Bot a gagné
     if (!game.winner_id) return { label: t('historyDraw'), style: styles.badgeDraw };
     if (game.winner_id === user.id) return { label: t('historyWin'), style: styles.badgeWin };
     return { label: t('historyLoss'), style: styles.badgeLoss };

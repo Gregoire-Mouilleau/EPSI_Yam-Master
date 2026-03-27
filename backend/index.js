@@ -55,6 +55,8 @@ const saveGameToHistory = (game, winner, player1Score, player2Score, durationSec
       winnerId = player1.id;
     } else if (winner === 'player:2' && player2) {
       winnerId = player2.id;
+    } else if (winner === 'player:2' && game.isVsBot) {
+      winnerId = 0; // Sentinel : le bot a gagné (0 n'est jamais un vrai user ID)
     }
     // Si winner === 'draw', winnerId reste null
 
@@ -77,6 +79,12 @@ const saveGameToHistory = (game, winner, player1Score, player2Score, durationSec
     );
     
     console.log(`[HISTORY] ✓ Partie sauvegardée: ${game.player1Pseudo} vs ${game.player2Pseudo || 'Bot'} (${winner})`);
+
+    // Supprimer la sauvegarde en cours pour les parties vs bot (la partie est terminée)
+    if (game.isVsBot) {
+      deleteSavedGameStmt.run(player1.id);
+      console.log(`[HISTORY] Sauvegarde vs bot supprimée pour "${game.player1Pseudo}"`);
+    }
   } catch (error) {
     console.error('[HISTORY ERROR]', error);
   }
@@ -1284,6 +1292,31 @@ io.on('connection', socket => {
     createGameVsBot(socket, pseudo, avatarKey);
   });
   
+  socket.on('vsbot.abandon', (data) => {
+    const pseudo = data?.pseudo || 'Anonymous';
+
+    // Supprimer la partie active en mémoire si elle existe encore
+    const gameIndex = GameService.utils.findGameIndexBySocketId(games, socket.id);
+    if (gameIndex !== -1 && games[gameIndex].isVsBot) {
+      if (games[gameIndex].gameInterval) {
+        clearInterval(games[gameIndex].gameInterval);
+      }
+      games.splice(gameIndex, 1);
+      console.log(`[ABANDON] Partie active de "${pseudo}" supprimée`);
+    }
+
+    // Supprimer la sauvegarde SQLite
+    try {
+      const user = getUserByPseudoStmt.get(pseudo);
+      if (user) {
+        deleteSavedGameStmt.run(user.id);
+        console.log(`[ABANDON] Sauvegarde supprimée pour "${pseudo}"`);
+      }
+    } catch (error) {
+      console.error('Error handling vsbot.abandon:', error);
+    }
+  });
+
   socket.on('game.reconnect', (data) => {
     const previousSocketId = data?.previousSocketId;
     

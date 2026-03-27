@@ -161,6 +161,7 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
             avatarKeyPlayer={avatarKeyPlayer}
             avatarKeyOpponent={avatarKeyOpponent}
             onRematch={() => {
+                socket.emit('vsbot.abandon', { pseudo: user?.pseudo });
                 setGameEnded(false);
                 setGameEndData(null);
                 setInGame(false);
@@ -170,6 +171,7 @@ export default function VsBotGameController({ navigation, language = 'FR', onGam
                 setTimeout(() => { navigation.navigate('VsBotGameScreen'); }, 100);
             }}
             onReturnToMenu={() => {
+                socket.emit('vsbot.abandon', { pseudo: user?.pseudo });
                 setGameEnded(false);
                 setGameEndData(null);
                 setInGame(false);
