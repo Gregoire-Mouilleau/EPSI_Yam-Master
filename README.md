@@ -1,4 +1,4 @@
-# DiceForge
+# Yam Master
 
 > Jeu de dés multijoueur en temps réel — conçu dans le cadre du cours **Architecture Applicative** à l'EPSI (4ème année).
 
