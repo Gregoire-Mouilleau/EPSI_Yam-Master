@@ -1647,8 +1647,10 @@ io.on('connection', socket => {
   });
 });
 
-app.get('/', (req, res) => res.json({ status: 'WebSocket Server running', port: 3000 }));
+const PORT = process.env.PORT || 3000;
 
-server.listen(3000, function(){
-  console.log('listening on *:3000');
+app.get('/', (req, res) => res.json({ status: 'WebSocket Server running', port: PORT }));
+
+server.listen(PORT, function(){
+  console.log(`listening on *:${PORT}`);
 });
