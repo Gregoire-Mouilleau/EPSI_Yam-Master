@@ -1,5 +1,5 @@
 # Stage 1 : build Expo web
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # EXPO_PUBLIC_BACKEND_URL est injecté par Railway au moment du build
 ARG EXPO_PUBLIC_BACKEND_URL
