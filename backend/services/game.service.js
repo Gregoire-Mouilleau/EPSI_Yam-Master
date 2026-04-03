@@ -15,6 +15,8 @@ const DECK_INIT = {
 
 const CHOICES_INIT = {
     isDefi: false,
+    isDefiMode: false,
+    defiRollCount: 0,
     isSec: false,
     idSelectedChoice: null,
     availableChoices: [],
@@ -186,7 +188,9 @@ const GameService = {
                     displayChoices: true,
                     canMakeChoice: playerKey === gameState.currentTurn,
                     idSelectedChoice: gameState.choices.idSelectedChoice,
-                    availableChoices: gameState.choices.availableChoices
+                    availableChoices: gameState.choices.availableChoices,
+                    isDefiMode: gameState.choices.isDefiMode || false,
+                    defiRollCount: gameState.choices.defiRollCount || 0,
                 }
                 return choicesViewState;
             },
@@ -321,7 +325,7 @@ const GameService = {
                 }
             });
 
-            const notOnlyBrelan = availableCombinations.some(combination => !combination.id.includes('brelan'));
+            const notOnlyBrelan = availableCombinations.some(combination => !combination.id.includes('brelan') && combination.id !== 'defi');
 
             if (isSec && availableCombinations.length > 0 && notOnlyBrelan) {
                 const secCombination = allCombinations.find(combination => combination.id === 'sec');

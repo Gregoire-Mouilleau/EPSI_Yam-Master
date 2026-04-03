@@ -126,5 +126,8 @@
   "profileUpdateFailed": "Impossible de mettre à jour le profil",
   "noConnectionTitle": "⚠️ Pas de connexion",
   "noConnectionText": "Impossible de se connecter au serveur.",
-  "noConnectionSubtext": "Redémarrez l'application et réessayez."
+  "noConnectionSubtext": "Redémarrez l'application et réessayez.",
+  "defiModeActive": "⚡ DÉFI EN COURS",
+  "defiModeRoll": "Lancez les dés pour valider !",
+  "defiModeFail": "❌ Défi échoué - tour perdu !"
 }

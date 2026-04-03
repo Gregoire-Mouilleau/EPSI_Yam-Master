@@ -147,6 +147,8 @@ const BotService = {
         if (comboId === 'suite')     return 900;
         // SEC : obtenu sans re-lancer = rare, on ne peut pas le retrouver après re-lancer
         if (comboId === 'sec')       return 850;
+        // DÉFI : case rare et stratégique, priorité sur les brelans
+        if (comboId === 'defi')      return 950;
         // ≤8 : combo spécial valeur correcte
         if (comboId === 'moinshuit') return 600;
         if (comboId.startsWith('brelan')) {
@@ -1164,6 +1166,92 @@ const BotService = {
             }
         }
         
+        return [];
+    },
+
+    // Choisit les dés à garder pendant un lancer de défi pour maximiser les chances
+    // d'obtenir une figure non-brelan (full, carré, ≤8, suite...)
+    getDefiDicesToKeep: (dices) => {
+        const counts = Array(7).fill(0);
+        dices.forEach(d => { if (d.value) counts[parseInt(d.value)]++; });
+
+        const values = dices.map(d => parseInt(d.value));
+        const sum = values.reduce((a, b) => a + b, 0);
+
+        // Trouver la valeur la plus fréquente (pour carré/full)
+        let maxCount = 0, maxValue = 0;
+        for (let i = 1; i <= 6; i++) {
+            if (counts[i] > maxCount) { maxCount = counts[i]; maxValue = i; }
+        }
+
+        // Trouver la 2e valeur la plus fréquente (pour full)
+        let secondCount = 0, secondValue = 0;
+        for (let i = 1; i <= 6; i++) {
+            if (i !== maxValue && counts[i] > secondCount) { secondCount = counts[i]; secondValue = i; }
+        }
+
+        // ── PRIORITÉ 1 : DOUBLES → viser CARRÉ ou FULL ──────────────────────
+
+        // Carré déjà là : garder les 4
+        if (maxCount >= 4) {
+            return dices.filter(d => parseInt(d.value) === maxValue);
+        }
+
+        // Brelan + paire = full assuré : garder les deux groupes
+        if (maxCount === 3 && secondCount >= 2) {
+            return dices.filter(d => parseInt(d.value) === maxValue || parseInt(d.value) === secondValue);
+        }
+
+        // Brelan seul : garder pour tenter carré ou full au prochain lancer
+        if (maxCount === 3) {
+            return dices.filter(d => parseInt(d.value) === maxValue);
+        }
+
+        // Deux paires : garder les deux pour tenter le full
+        if (maxCount === 2 && secondCount >= 2) {
+            return dices.filter(d => parseInt(d.value) === maxValue || parseInt(d.value) === secondValue);
+        }
+
+        // Une paire : garder pour tenter brelan → carré/full
+        if (maxCount === 2) {
+            return dices.filter(d => parseInt(d.value) === maxValue);
+        }
+
+        // ── PRIORITÉ 2 : PETITS CHIFFRES → viser ≤8 ─────────────────────────
+        // Seulement si tous les dés sont petits (≤3) ou somme déjà très basse
+
+        const smallDices = dices.filter(d => parseInt(d.value) <= 3);
+        const allSmall = values.every(v => v <= 3);
+
+        if (sum <= 8) {
+            // Déjà ≤8, garder tous les dés
+            return [...dices];
+        }
+
+        if (allSmall || smallDices.length >= 4) {
+            // Tous petits ou 4+ petits dés → viser ≤8
+            return smallDices;
+        }
+
+        // ── PRIORITÉ 3 : SUITE → seulement si 4 dés déjà en séquence ────────
+
+        const uniqueVals = [...new Set(values)].sort((a, b) => a - b);
+        const longestSeq = BotService.findLongestSequence(uniqueVals);
+        if (longestSeq.length >= 4) {
+            const seqSet = new Set(longestSeq);
+            const kept = [];
+            const usedVals = new Set();
+            for (const d of dices) {
+                const v = parseInt(d.value);
+                if (seqSet.has(v) && !usedVals.has(v)) {
+                    kept.push(d);
+                    usedVals.add(v);
+                }
+            }
+            return kept;
+        }
+
+        // Rien d'exploitable : tout relancer
         return [];
     }
 };

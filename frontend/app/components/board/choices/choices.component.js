@@ -13,6 +13,8 @@ const Choices = () => {
     const [canMakeChoice, setCanMakeChoice] = useState(false);
     const [idSelectedChoice, setIdSelectedChoice] = useState(null);
     const [availableChoices, setAvailableChoices] = useState([]);
+    const [isDefiMode, setIsDefiMode] = useState(false);
+    const [defiRollCount, setDefiRollCount] = useState(0);
 
     useEffect(() => {
 
@@ -21,6 +23,8 @@ const Choices = () => {
             setCanMakeChoice(data['canMakeChoice']);
             setIdSelectedChoice(data['idSelectedChoice']);
             setAvailableChoices(data['availableChoices']);
+            setIsDefiMode(data['isDefiMode'] || false);
+            setDefiRollCount(data['defiRollCount'] || 0);
         });
 
         return () => {
@@ -45,12 +49,20 @@ const Choices = () => {
             </View>
             
             <View style={styles.choicesContainer}>
-                {displayChoices && availableChoices.length > 0 ? (
+                {/* Indicateur défi actif (attente d'un lancer pour valider) */}
+                {isDefiMode && availableChoices.length === 0 ? (
+                    <View style={styles.defiModeContainer}>
+                        <Text style={styles.defiModeText}>{t('defiModeActive')}</Text>
+                        <Text style={styles.defiModeSubText}>{t('defiModeRoll')}</Text>
+                        <Text style={styles.defiRollCountText}>{defiRollCount} / 2</Text>
+                    </View>
+                ) : displayChoices && availableChoices.length > 0 ? (
                     availableChoices.map((choice) => (
                         <TouchableOpacity
                             key={choice.id}
                             style={[
                                 styles.choiceButton,
+                                choice.id === 'defi' && styles.defiChoice,
                                 idSelectedChoice === choice.id && styles.selectedChoice,
                                 (!canMakeChoice || choice.disabled) && styles.disabledChoice
                             ]}
@@ -60,6 +72,7 @@ const Choices = () => {
                         >
                             <Text style={[
                                 styles.choiceText,
+                                choice.id === 'defi' && styles.defiChoiceText,
                                 idSelectedChoice === choice.id && styles.selectedChoiceText,
                                 choice.disabled && styles.disabledChoiceText
                             ]}>

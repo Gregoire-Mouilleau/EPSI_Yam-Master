@@ -294,8 +294,15 @@ const playBotTurn = (gameIndex) => {
       // Calculer les combinaisons disponibles
       const dices = games[gameIndex].gameState.deck.dices;
       const currentRoll = games[gameIndex].gameState.deck.rollsCounter;
-      const isDefi = false;
-      const isSec = currentRoll === 2;
+      const isFirstRollBot = currentRoll === 2;
+      let isDefi;
+      if (isFirstRollBot) {
+        isDefi = Math.random() < 0.75 && isDefiCellAvailable(games[gameIndex].gameState.grid);
+        games[gameIndex].gameState.choices.isDefi = isDefi;
+      } else {
+        isDefi = games[gameIndex].gameState.choices.isDefi || false;
+      }
+      const isSec = isFirstRollBot;
       const combinations = GameService.choices.findCombinations(dices, isDefi, isSec, games[gameIndex].gameState.grid);
       games[gameIndex].gameState.choices.availableChoices = combinations;
 
@@ -350,6 +357,7 @@ const playBotTurn = (gameIndex) => {
         const hasFull  = usableChoices.some(c => c.id === 'full'  || c.id.startsWith('full'));
         const hasSec   = usableChoices.some(c => c.id === 'sec');
         const hasMoinsHuit = usableChoices.some(c => c.id === 'moinshuit');
+        const hasDefi  = usableChoices.some(c => c.id === 'defi');
 
         // Évaluer si la combo a une importance stratégique critique
         const choicesWithScores = usableChoices.map(choice => {
@@ -408,6 +416,16 @@ const playBotTurn = (gameIndex) => {
         else if (hasStrategicMH || (hasMoinsHuit && currentRoll >= rollsMax)) {
           shouldStop = true;
           console.log('[BOT] ≤8 stratégique - arrêt immédiat');
+        }
+        // DÉFI : le bot tente le défi si disponible et pas de meilleure combo
+        else if (hasDefi) {
+          if (currentRoll >= rollsMax) {
+            shouldStop = true;
+            console.log('[BOT] 🎯 DÉFI disponible au dernier lancer - arrêt');
+          } else {
+            shouldStop = Math.random() < 0.5;
+            console.log('[BOT] 🎯 DÉFI disponible -', shouldStop ? 'arrêt pour tenter le défi' : 'continue de lancer');
+          }
         }
         
         if (shouldStop) {
@@ -571,6 +589,81 @@ const botLockDicesOneByOne = (gameIndex, dicesToLock, callback) => {
   }, finalDelay);
 };
 
+// Le bot joue en mode défi (tente d'obtenir une figure non-brelan)
+const botPlayDefiMode = (gameIndex, maxAttempts = 2) => {
+  if (!games[gameIndex] || games[gameIndex].gameState.currentTurn !== 'player:2') return;
+
+  const attemptDefiRoll = () => {
+    if (!games[gameIndex] || games[gameIndex].gameState.currentTurn !== 'player:2') return;
+
+    const defiRollCount = (games[gameIndex].gameState.choices.defiRollCount || 0) + 1;
+    games[gameIndex].gameState.choices.defiRollCount = defiRollCount;
+
+    // Déverrouiller tous les dés avant de lancer (sauf si c'est un relancer avec des dés gardés)
+    if (defiRollCount === 1) {
+      // Premier lancer défi : tout déverrouiller
+      games[gameIndex].gameState.deck.dices = games[gameIndex].gameState.deck.dices.map(d => ({ ...d, locked: false }));
+    }
+    // Sinon les dés sont déjà dans l'état voulu (certains verrouillés par botUpdateDiceLocks)
+    games[gameIndex].gameState.deck.dices = GameService.dices.roll(games[gameIndex].gameState.deck.dices);
+    games[gameIndex].gameState.deck.rollsCounter++;
+
+    console.log(`[BOT] [DEFI] Lancer défi ${defiRollCount}/${maxAttempts}`);
+    updateClientsViewDecks(games[gameIndex]);
+    updateClientsViewChoices(games[gameIndex]);
+
+    setTimeout(() => {
+      if (!games[gameIndex]) return;
+
+      const dices = games[gameIndex].gameState.deck.dices;
+      const isSec = defiRollCount === 1;
+      const allCombos = GameService.choices.findCombinations(dices, false, isSec, games[gameIndex].gameState.grid);
+      const hasNonBrelan = allCombos.some(c => !c.id.includes('brelan'));
+
+      if (hasNonBrelan) {
+        // DÉFI RÉUSSI
+        console.log('[BOT] [DEFI] ✅ Défi réussi !');
+        const defiAvailable = isDefiCellAvailable(games[gameIndex].gameState.grid);
+        games[gameIndex].gameState.choices.availableChoices = [{ value: 'Défi', id: 'defi', disabled: !defiAvailable }];
+        games[gameIndex].gameState.choices.idSelectedChoice = 'defi';
+        games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+        games[gameIndex].gameState.grid = GameService.grid.updateGridAfterSelectingChoice('defi', games[gameIndex].gameState.grid);
+        games[gameIndex].gameState.deck.rollsCounter = games[gameIndex].gameState.deck.rollsMaximum + 1;
+        games[gameIndex].gameState.deck.dices = GameService.dices.lockEveryDice(games[gameIndex].gameState.deck.dices);
+        updateClientsViewDecks(games[gameIndex]);
+        updateClientsViewChoices(games[gameIndex]);
+        updateClientsViewGrid(games[gameIndex]);
+        setTimeout(() => botChooseCell(gameIndex, 'defi', BotService.determineStrategy(
+          games[gameIndex].gameState.grid, 'player:2', 'player:1'
+        )), 1200);
+
+      } else if (defiRollCount >= maxAttempts) {
+        // DÉFI ÉCHOUÉ après tous les lancers disponibles - perte du tour
+        console.log('[BOT] [DEFI] ❌ Défi échoué - perte du tour');
+        games[gameIndex].gameState.currentTurn = 'player:1';
+        games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+        games[gameIndex].gameState.deck = GameService.init.deck();
+        games[gameIndex].gameState.choices = GameService.init.choices();
+        games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+        updateClientsViewTimers(games[gameIndex]);
+        updateClientsViewDecks(games[gameIndex]);
+        updateClientsViewChoices(games[gameIndex]);
+        updateClientsViewGrid(games[gameIndex]);
+
+      } else {
+        // Échec du 1er lancer - verrouiller les dés stratégiques avant de relancer
+        const dicesToKeep = BotService.getDefiDicesToKeep(games[gameIndex].gameState.deck.dices);
+        console.log(`[BOT] [DEFI] Dés à garder pour relancer: ${dicesToKeep.map(d => `${d.id}(${d.value})`).join(', ') || 'aucun'}`);
+        botUpdateDiceLocks(gameIndex, dicesToKeep, () => {
+          setTimeout(() => attemptDefiRoll(), 500);
+        });
+      }
+    }, 2300);
+  };
+
+  setTimeout(() => attemptDefiRoll(), 1000);
+};
+
 // Le bot choisit une combinaison
 const botChooseCombo = (gameIndex) => {
   if (!games[gameIndex] || games[gameIndex].gameState.currentTurn !== 'player:2') return;
@@ -588,6 +681,61 @@ const botChooseCombo = (gameIndex) => {
 
   if (!chosenCombo) {
     // Pas de combo disponible, passer au tour suivant
+    return;
+  }
+
+  // Cas spécial : le bot a choisi le défi
+  if (chosenCombo.id === 'defi') {
+    const alreadyValidates = games[gameIndex].gameState.choices.availableChoices.some(
+      c => !c.id.includes('brelan') && c.id !== 'defi'
+    );
+
+    if (alreadyValidates) {
+      // Défi validé immédiatement (figure non-brelan déjà présente)
+      console.log('[BOT] [DEFI] ✅ Défi validé immédiatement (figure non-brelan déjà présente)');
+      const defiAvailable = isDefiCellAvailable(games[gameIndex].gameState.grid);
+      games[gameIndex].gameState.choices.availableChoices = [{ value: 'Défi', id: 'defi', disabled: !defiAvailable }];
+      games[gameIndex].gameState.choices.idSelectedChoice = 'defi';
+      games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+      games[gameIndex].gameState.grid = GameService.grid.updateGridAfterSelectingChoice('defi', games[gameIndex].gameState.grid);
+      games[gameIndex].gameState.deck.rollsCounter = games[gameIndex].gameState.deck.rollsMaximum + 1;
+      games[gameIndex].gameState.deck.dices = GameService.dices.lockEveryDice(games[gameIndex].gameState.deck.dices);
+      updateClientsViewDecks(games[gameIndex]);
+      updateClientsViewChoices(games[gameIndex]);
+      updateClientsViewGrid(games[gameIndex]);
+      setTimeout(() => botChooseCell(gameIndex, 'defi', BotService.determineStrategy(
+        games[gameIndex].gameState.grid, 'player:2', 'player:1'
+      )), 1200);
+    } else {
+      // Calculer combien de lancers défi sont encore possibles
+      const rollsMaximum = games[gameIndex].gameState.deck.rollsMaximum;
+      const rollsCounter = games[gameIndex].gameState.deck.rollsCounter;
+      const maxDefiAttempts = Math.max(0, rollsMaximum - (rollsCounter - 1));
+
+      if (maxDefiAttempts === 0) {
+        // Plus de lancers disponibles, le défi échoue immédiatement
+        console.log('[BOT] [DEFI] ❌ Aucun lancer restant pour le défi - perte du tour');
+        games[gameIndex].gameState.currentTurn = 'player:1';
+        games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+        games[gameIndex].gameState.deck = GameService.init.deck();
+        games[gameIndex].gameState.choices = GameService.init.choices();
+        games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+        updateClientsViewTimers(games[gameIndex]);
+        updateClientsViewDecks(games[gameIndex]);
+        updateClientsViewChoices(games[gameIndex]);
+        updateClientsViewGrid(games[gameIndex]);
+        return;
+      }
+
+      // Entrer en mode défi : le bot doit rouler pour obtenir une figure non-brelan
+      console.log(`[BOT] [DEFI] 🎯 Entrée en mode défi (${maxDefiAttempts} lancers disponibles)`);
+      games[gameIndex].gameState.choices.isDefiMode = true;
+      games[gameIndex].gameState.choices.defiRollCount = 0;
+      games[gameIndex].gameState.choices.availableChoices = [];
+      updateClientsViewChoices(games[gameIndex]);
+      updateClientsViewDecks(games[gameIndex]);
+      setTimeout(() => botPlayDefiMode(gameIndex, maxDefiAttempts), 1000);
+    }
     return;
   }
 
@@ -1108,6 +1256,15 @@ const removeGameBySocket = (socket) => {
   }
 };
 
+// Helper : vérifie si au moins une cellule Défi est disponible sur la grille
+const isDefiCellAvailable = (grid) => {
+  for (const row of grid) {
+    for (const cell of row) {
+      if (cell.id === 'defi' && cell.owner === null) return true;
+    }
+  }
+  return false;
+};
 io.on('connection', socket => {
 
   socket.on('queue.join', (data) => {
@@ -1364,64 +1521,171 @@ io.on('connection', socket => {
 
     if (gameIndex === -1) return;
 
+    const isDefiMode = games[gameIndex].gameState.choices.isDefiMode;
+
     if (games[gameIndex].gameState.deck.rollsCounter < games[gameIndex].gameState.deck.rollsMaximum) {
       // Si ce n'est pas le dernier lancé
 
-      // Gestion des dés 
+      // Gestion des dés
       games[gameIndex].gameState.deck.dices = GameService.dices.roll(games[gameIndex].gameState.deck.dices);
       games[gameIndex].gameState.deck.rollsCounter++;
 
-      // Gestion des combinaisons
-      const dices = games[gameIndex].gameState.deck.dices;
-      const isDefi = false;
-      const isSec = games[gameIndex].gameState.deck.rollsCounter === 2;
+      if (isDefiMode) {
+        // Mode défi actif : montrer d'abord l'animation des dés, puis traiter
+        games[gameIndex].gameState.choices.defiRollCount = (games[gameIndex].gameState.choices.defiRollCount || 0) + 1;
+        const currentDefiRoll = games[gameIndex].gameState.choices.defiRollCount;
+        // Envoyer les dés lancés pour l'animation
+        updateClientsViewTimers(games[gameIndex]);
+        updateClientsViewDecks(games[gameIndex]);
 
-      const combinations = GameService.choices.findCombinations(dices, isDefi, isSec, games[gameIndex].gameState.grid);
-      games[gameIndex].gameState.choices.availableChoices = combinations;
+        setTimeout(() => {
+          if (!games[gameIndex]) return;
+          const dices = games[gameIndex].gameState.deck.dices;
+          // isSec est valable uniquement sur le 1er lancé du défi
+          const isSec = currentDefiRoll === 1;
+          const allCombos = GameService.choices.findCombinations(dices, false, isSec, games[gameIndex].gameState.grid);
+          const hasNonBrelan = allCombos.some(c => !c.id.includes('brelan'));
 
-      // Réinitialiser le timer à 30s (le joueur peut encore roller)
-      games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+          if (hasNonBrelan) {
+            // DÉFI RÉUSSI
+            console.log('[DEFI] ✅ Défi réussi !');
+            const defiAvailable = isDefiCellAvailable(games[gameIndex].gameState.grid);
+            games[gameIndex].gameState.choices.availableChoices = [{ value: 'Défi', id: 'defi', disabled: !defiAvailable }];
+            games[gameIndex].gameState.choices.idSelectedChoice = 'defi';
+            games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+            games[gameIndex].gameState.grid = GameService.grid.updateGridAfterSelectingChoice('defi', games[gameIndex].gameState.grid);
+            // Cacher le bouton de lancer (rollsCounter > rollsMaximum)
+            games[gameIndex].gameState.deck.rollsCounter = games[gameIndex].gameState.deck.rollsMaximum + 1;
+            games[gameIndex].gameState.deck.dices = GameService.dices.lockEveryDice(games[gameIndex].gameState.deck.dices);
+            games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+            updateClientsViewTimers(games[gameIndex]);
+            updateClientsViewDecks(games[gameIndex]);
+            updateClientsViewChoices(games[gameIndex]);
+            updateClientsViewGrid(games[gameIndex]);
+          } else {
+            // Échec pour l'instant - le joueur peut encore lancer
+            games[gameIndex].gameState.choices.availableChoices = [];
+            games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+            updateClientsViewTimers(games[gameIndex]);
+            updateClientsViewDecks(games[gameIndex]);
+            updateClientsViewChoices(games[gameIndex]);
+          }
+        }, 2300);
+      } else {
+        // Lancer normal
+        const dices = games[gameIndex].gameState.deck.dices;
+        const isFirstRoll = games[gameIndex].gameState.deck.rollsCounter === 2;
+        // 15% de chance que le mode défi soit disponible UNIQUEMENT après le 1er lancer
+        // Pour les lancers suivants on conserve le flag déjà calculé
+        let isDefi;
+        if (isFirstRoll) {
+          isDefi = Math.random() < 0.75 && isDefiCellAvailable(games[gameIndex].gameState.grid);
+          games[gameIndex].gameState.choices.isDefi = isDefi;
+        } else {
+          // Le joueur a relancé sans sélectionner le défi : il disparaît
+          isDefi = false;
+          games[gameIndex].gameState.choices.isDefi = false;
+        }
+        const isSec = isFirstRoll;
 
-      // Gestion des vues
-      updateClientsViewTimers(games[gameIndex]);
-      updateClientsViewDecks(games[gameIndex]);
-      updateClientsViewChoices(games[gameIndex]);
+        const combinations = GameService.choices.findCombinations(dices, isDefi, isSec, games[gameIndex].gameState.grid);
+        games[gameIndex].gameState.choices.availableChoices = combinations;
+
+        // Réinitialiser le timer à 30s (le joueur peut encore roller)
+        games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+
+        // Gestion des vues
+        updateClientsViewTimers(games[gameIndex]);
+        updateClientsViewDecks(games[gameIndex]);
+        updateClientsViewChoices(games[gameIndex]);
+      }
 
     } else {
       // Si c'est le dernier lancer
 
-      // Gestion des dés 
+      // Gestion des dés
       games[gameIndex].gameState.deck.dices = GameService.dices.roll(games[gameIndex].gameState.deck.dices);
       games[gameIndex].gameState.deck.rollsCounter++;
 
-      // Gestion des combinaisons
-      const dices = games[gameIndex].gameState.deck.dices;
-      const isDefi = false;
-      const isSec = games[gameIndex].gameState.deck.rollsCounter === 2;
+      if (isDefiMode) {
+        // Dernier lancer en mode défi : montrer l'animation d'abord
+        games[gameIndex].gameState.choices.defiRollCount = (games[gameIndex].gameState.choices.defiRollCount || 0) + 1;
+        const currentDefiRollLast = games[gameIndex].gameState.choices.defiRollCount;
+        updateClientsViewTimers(games[gameIndex]);
+        updateClientsViewDecks(games[gameIndex]);
 
-      const combinations = GameService.choices.findCombinations(dices, isDefi, isSec, games[gameIndex].gameState.grid);
-      games[gameIndex].gameState.choices.availableChoices = combinations;
+        setTimeout(() => {
+          if (!games[gameIndex]) return;
+          const dices = games[gameIndex].gameState.deck.dices;
+          // isSec est valable uniquement sur le 1er lancé du défi
+          const isSec = currentDefiRollLast === 1;
+          const allCombos = GameService.choices.findCombinations(dices, false, isSec, games[gameIndex].gameState.grid);
+          const hasNonBrelan = allCombos.some(c => !c.id.includes('brelan'));
 
-      // Si on a au moins une combinaison utilisable (non disabled), on laisse 30s, sinon 4s
-      const hasUsableChoice = combinations.some(combo => !combo.disabled);
-      if (hasUsableChoice) {
-        games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+          if (hasNonBrelan) {
+            // DÉFI RÉUSSI au dernier lancer
+            console.log('[DEFI] ✅ Défi réussi au dernier lancer !');
+            const defiAvailable = isDefiCellAvailable(games[gameIndex].gameState.grid);
+            games[gameIndex].gameState.choices.availableChoices = [{ value: 'Défi', id: 'defi', disabled: !defiAvailable }];
+            games[gameIndex].gameState.choices.idSelectedChoice = 'defi';
+            games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+            games[gameIndex].gameState.grid = GameService.grid.updateGridAfterSelectingChoice('defi', games[gameIndex].gameState.grid);
+            games[gameIndex].gameState.deck.dices = GameService.dices.lockEveryDice(games[gameIndex].gameState.deck.dices);
+            games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+            updateClientsViewTimers(games[gameIndex]);
+            updateClientsViewDecks(games[gameIndex]);
+            updateClientsViewChoices(games[gameIndex]);
+            updateClientsViewGrid(games[gameIndex]);
+          } else {
+            // DÉFI ÉCHOUÉ - perte du tour
+            console.log('[DEFI] ❌ Défi échoué - perte du tour');
+            games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
+            games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+            games[gameIndex].gameState.deck = GameService.init.deck();
+            games[gameIndex].gameState.choices = GameService.init.choices();
+            games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+            updateClientsViewTimers(games[gameIndex]);
+            updateClientsViewDecks(games[gameIndex]);
+            updateClientsViewChoices(games[gameIndex]);
+            updateClientsViewGrid(games[gameIndex]);
+            // Si vs bot et c'est maintenant le tour du bot
+            if (games[gameIndex] && games[gameIndex].isVsBot && games[gameIndex].gameState.currentTurn === 'player:2') {
+              setTimeout(() => playBotTurn(gameIndex), 1000);
+            }
+          }
+        }, 2300);
       } else {
-        games[gameIndex].gameState.timer = 4;
-      }
+        // Lancer normal (dernier)
+        const dices = games[gameIndex].gameState.deck.dices;
+        // Le joueur arrive au dernier lancer sans avoir sélectionné le défi : il disparaît
+        const isDefi = false;
+        games[gameIndex].gameState.choices.isDefi = false;
+        const isSec = false;
 
-      // Envoyer d'abord l'état avec les dés non verrouillés pour l'animation
-      updateClientsViewTimers(games[gameIndex]);
-      updateClientsViewDecks(games[gameIndex]);
-      updateClientsViewChoices(games[gameIndex]);
+        const combinations = GameService.choices.findCombinations(dices, isDefi, isSec, games[gameIndex].gameState.grid);
+        games[gameIndex].gameState.choices.availableChoices = combinations;
 
-      // Verrouiller tous les dés après 2.3 secondes (temps de l'animation)
-      setTimeout(() => {
-        if (games[gameIndex]) {
-          games[gameIndex].gameState.deck.dices = GameService.dices.lockEveryDice(games[gameIndex].gameState.deck.dices);
-          updateClientsViewDecks(games[gameIndex]);
+        // Si on a au moins une combinaison utilisable (non disabled), on laisse 30s, sinon 4s
+        const hasUsableChoice = combinations.some(combo => !combo.disabled);
+        if (hasUsableChoice) {
+          games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+        } else {
+          games[gameIndex].gameState.timer = 4;
         }
-      }, 2300);
+
+        // Envoyer d'abord l'état avec les dés non verrouillés pour l'animation
+        updateClientsViewTimers(games[gameIndex]);
+        updateClientsViewDecks(games[gameIndex]);
+        updateClientsViewChoices(games[gameIndex]);
+
+        // Verrouiller tous les dés après 2.3 secondes (temps de l'animation)
+        setTimeout(() => {
+          if (games[gameIndex]) {
+            games[gameIndex].gameState.deck.dices = GameService.dices.lockEveryDice(games[gameIndex].gameState.deck.dices);
+            updateClientsViewDecks(games[gameIndex]);
+          }
+        }, 2300);
+      }
     }
   });
 
@@ -1450,7 +1714,47 @@ io.on('connection', socket => {
 
     if (gameIndex === -1) return;
 
+    const choices = games[gameIndex].gameState.choices;
+
+    // Si le joueur choisit "Défi" pour entrer en mode défi (pas encore actif)
+    if (data.choiceId === 'defi' && choices.isDefi && !choices.isDefiMode) {
+      // Vérifier si les dés actuels valident déjà le défi (figure non-brelan présente)
+      // On utilise les availableChoices déjà calculées (avec le bon isSec) plutôt que de recalculer
+      const alreadyValidates = choices.availableChoices.some(c => !c.id.includes('brelan') && c.id !== 'defi');
+
+      if (alreadyValidates) {
+        // Défi immédiatement validé (ex: le joueur avait déjà un Sec)
+        console.log('[DEFI] ✅ Défi validé immédiatement (figure non-brelan déjà présente)');
+        const defiAvailable = isDefiCellAvailable(games[gameIndex].gameState.grid);
+        choices.isDefiMode = true;
+        choices.defiRollCount = 0;
+        choices.idSelectedChoice = 'defi';
+        choices.availableChoices = [{ value: 'Défi', id: 'defi', disabled: !defiAvailable }];
+        games[gameIndex].gameState.deck.rollsCounter = games[gameIndex].gameState.deck.rollsMaximum + 1;
+        games[gameIndex].gameState.deck.dices = GameService.dices.lockEveryDice(games[gameIndex].gameState.deck.dices);
+        games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+        games[gameIndex].gameState.grid = GameService.grid.updateGridAfterSelectingChoice('defi', games[gameIndex].gameState.grid);
+        games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+        updateClientsViewTimers(games[gameIndex]);
+        updateClientsViewDecks(games[gameIndex]);
+        updateClientsViewChoices(games[gameIndex]);
+        updateClientsViewGrid(games[gameIndex]);
+      } else {
+        // Le joueur doit encore lancer les dés pour valider
+        choices.isDefiMode = true;
+        choices.defiRollCount = 0;
+        choices.idSelectedChoice = 'defi';
+        choices.availableChoices = [{ value: 'Défi', id: 'defi', disabled: false }];
+        games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
+        updateClientsViewChoices(games[gameIndex]);
+        updateClientsViewGrid(games[gameIndex]);
+      }
+      return;
+    }
+
     games[gameIndex].gameState.choices.idSelectedChoice = data.choiceId;
+    // Le joueur a choisi une combo normale - le défi n'est plus disponible
+    games[gameIndex].gameState.choices.isDefi = false;
 
     // Mise à jour de la grille
     games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);

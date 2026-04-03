@@ -126,5 +126,8 @@
   "profileUpdateFailed": "Could not update profile",
   "noConnectionTitle": "⚠️ No connection",
   "noConnectionText": "Unable to connect to the server.",
-  "noConnectionSubtext": "Please restart the app and try again."
+  "noConnectionSubtext": "Please restart the app and try again.",
+  "defiModeActive": "⚡ CHALLENGE IN PROGRESS",
+  "defiModeRoll": "Roll the dice to validate!",
+  "defiModeFail": "❌ Challenge failed - turn lost!"
 }
