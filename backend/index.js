@@ -297,7 +297,7 @@ const playBotTurn = (gameIndex) => {
       const isFirstRollBot = currentRoll === 2;
       let isDefi;
       if (isFirstRollBot) {
-        isDefi = Math.random() < 0.75 && isDefiCellAvailable(games[gameIndex].gameState.grid);
+        isDefi = Math.random() < 0.15 && isDefiCellAvailable(games[gameIndex].gameState.grid);
         games[gameIndex].gameState.choices.isDefi = isDefi;
       } else {
         isDefi = games[gameIndex].gameState.choices.isDefi || false;
@@ -1579,7 +1579,7 @@ io.on('connection', socket => {
         // Pour les lancers suivants on conserve le flag déjà calculé
         let isDefi;
         if (isFirstRoll) {
-          isDefi = Math.random() < 0.75 && isDefiCellAvailable(games[gameIndex].gameState.grid);
+          isDefi = Math.random() < 0.15 && isDefiCellAvailable(games[gameIndex].gameState.grid);
           games[gameIndex].gameState.choices.isDefi = isDefi;
         } else {
           // Le joueur a relancé sans sélectionner le défi : il disparaît
