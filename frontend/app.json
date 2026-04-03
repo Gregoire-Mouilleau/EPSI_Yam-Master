@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Yam Master",
+    "slug": "yam-master",
+    "version": "1.0.0",
+    "platforms": ["web"],
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "assetBundlePatterns": ["**/*"]
+  }
+}
