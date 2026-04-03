@@ -2,6 +2,11 @@
 import { View, Text, TouchableOpacity, Image } from "react-native";
 import styles from './grid.styles';
 import { SocketContext } from "../../../contexts/socket.context";
+import DiceFace from './DiceFace.component';
+import ComboDice from './ComboDice.component';
+
+const DICE_VALUES = new Set(['1', '2', '3', '4', '5', '6']);
+const COMBO_VALUES = new Set(['Yam', 'Carré', 'Full', 'Suite', 'Défi', 'Sec', '≤8']);
 
 const Grid = () => {
 
@@ -80,7 +85,20 @@ const Grid = () => {
                                 onPress={() => handleSelectCell(cell.id, rowIndex, cellIndex)}
                                 disabled={!cell.canBeChecked}
                             >
-                                <Text style={styles.cellText}>{cell.viewContent}</Text>
+                                {DICE_VALUES.has(String(cell.viewContent)) ? (
+                                    <DiceFace
+                                        value={parseInt(cell.viewContent)}
+                                        size={48}
+                                        highlight={cell.canBeChecked && !cell.owner}
+                                    />
+                                ) : COMBO_VALUES.has(String(cell.viewContent)) ? (
+                                    <ComboDice
+                                        value={String(cell.viewContent)}
+                                        highlight={cell.canBeChecked && !cell.owner}
+                                    />
+                                ) : (
+                                    <Text style={styles.cellText}>{cell.viewContent}</Text>
+                                )}
                                 {renderToken(cell.owner)}
                             </TouchableOpacity>
                         ))}

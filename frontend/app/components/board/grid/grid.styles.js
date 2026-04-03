@@ -21,8 +21,8 @@ export default StyleSheet.create({
     backgroundColor: '#3D2817',
     borderWidth: 2,
     borderColor: '#8B6F47',
-    padding: 5,
-    minHeight: 40,
+    padding: 4,
+    minHeight: 65,
     position: 'relative',
   },
   cellText: {
